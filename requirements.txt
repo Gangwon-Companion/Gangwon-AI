@@ -1,0 +1,4 @@
+# Direct dependencies only. Pydantic is provided transitively by FastAPI.
+fastapi>=0.115,<1.0
+langgraph>=0.2,<1.0
+uvicorn>=0.30,<1.0
