@@ -1,44 +1,40 @@
 from __future__ import annotations
 
-import re
-
 from app.core.state import AgentName, TravelState
 
 
 BASE_PARALLEL_AGENTS: list[AgentName] = ["destination", "restaurant", "lodging"]
 
 
-# 요청 메시지 또는 명시된 값에서 여행 일수를 계산한다.
-def _infer_days(message: str, explicit_days: int | None) -> int:
-    if explicit_days and explicit_days > 1:
-        return explicit_days
-    match = re.search(r"(\d+)\s*박\s*(\d+)\s*일", message)
-    if match:
-        return int(match.group(2))
-    match = re.search(r"(\d+)\s*일", message)
-    return int(match.group(1)) if match else (explicit_days or 1)
-
-
-# 여행 일수와 액티비티 요청을 기준으로 필요한 슬롯을 만든다.
+# 여행 일수만큼 슬롯을 전개한다. Itinerary Agent가 슬롯 단위로 후보를 모으므로
+# 하루치 슬롯만 만들면 2일차 이후 일정을 구성할 수 없다.
 def _slots(days: int, has_activity: bool) -> list[str]:
-    result = ["DESTINATION", "LUNCH", "DINNER"]
-    if days > 1:
-        result.extend(["LODGING", "BREAKFAST"])
-    if has_activity:
-        result.append("ACTIVITY")
-    return result
+    slots: list[str] = []
+    for day in range(1, days + 1):
+        if day > 1:
+            slots.append(f"D{day}_BREAKFAST")
+        slots.append(f"D{day}_DESTINATION")
+        slots.append(f"D{day}_LUNCH")
+        if has_activity:
+            slots.append(f"D{day}_ACTIVITY")
+        slots.append(f"D{day}_DINNER")
+        if day < days:
+            slots.append(f"D{day}_LODGING")
+    return slots
 
 
-# 사용자 요청을 분석해 Agent 선택과 실행 순서를 결정한다.
+# 구조화된 요청과 선호 프로필을 근거로 Agent 선택과 실행 순서를 결정한다.
+# 자연어 해석은 앞단(FormBinder, PreferenceExtractor)에서 끝난 상태다.
 def supervisor_node(state: TravelState) -> TravelState:
     request = state["request"]
-    message = request.get("message", "")
-    days = _infer_days(message, request.get("travel_days"))
-    activity_requested = any(
-        keyword in message.lower() for keyword in ("액티비티", "체험", "레저", "activity", "experience")
-    )
+    profile = state.get("preference_profile", {})
+    days = request.get("travel_days") or 1
+    activity_requested = bool(profile.get("activity_requested"))
 
-    selected: list[AgentName] = list(BASE_PARALLEL_AGENTS)
+    # 당일치기면 숙박 슬롯이 없으므로 Lodging Agent도 호출하지 않는다.
+    selected: list[AgentName] = [
+        agent for agent in BASE_PARALLEL_AGENTS if agent != "lodging" or days > 1
+    ]
     if activity_requested:
         selected.append("activity")
 
@@ -55,7 +51,7 @@ def supervisor_node(state: TravelState) -> TravelState:
     )
 
     messages = [
-        f"{request.get('region', '미지정')} {days}일 여행으로 분류했습니다.",
+        f"{request.get('region') or '미지정'} {days}일 여행으로 분류했습니다.",
         "초기 후보 검색 Agent는 병렬 실행하고, 일정 구성 후 검증합니다.",
     ]
     if activity_requested:
@@ -65,7 +61,8 @@ def supervisor_node(state: TravelState) -> TravelState:
         "slots": _slots(days, activity_requested),
         "selected_agents": selected,
         "execution_plan": execution_plan,
-        "retry_count": 0,
+        # 검증 실패 후 재진입할 때 재시도 횟수가 초기화되면 무한 루프가 된다.
+        "retry_count": state.get("retry_count", 0),
         "status": "planned",
         "messages": messages,
     }
