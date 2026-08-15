@@ -116,8 +116,10 @@ def form_binder_node(state: TravelState) -> TravelState:
             inferred.append("pet_size")
 
     # Form에서 명시적으로 False를 보낸 경우에는 자연어가 True로 덮어쓰지 않는다.
-    # 필드 자체가 없을 때만 자연어를 누락값 보완에 사용한다.
-    if "wheelchair_accessible" not in request and _detect_flag(message, _WHEELCHAIR_KEYWORDS):
+    # 필드가 없거나 None일 때만 자연어로 누락값을 보완한다.
+    if request.get("wheelchair_accessible") is None and _detect_flag(
+        message, _WHEELCHAIR_KEYWORDS
+    ):
         request["wheelchair_accessible"] = True
         inferred.append("wheelchair_accessible")
 
@@ -201,6 +203,7 @@ def conflict_checker_node(state: TravelState) -> TravelState:
         "slots": [],
         "selected_agents": [],
         "execution_plan": [],
-        "retry_count": 0,
+        # Supervisor 재진입 시 기존 재시도 횟수를 보존한다.
+        "retry_count": state.get("retry_count", 0),
         "messages": messages,
     }

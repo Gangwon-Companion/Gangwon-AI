@@ -24,7 +24,8 @@ class TravelRequest(TypedDict, total=False):
     # None은 아직 입력받지 못한 상태이며, 반려동물 미동반(False)과 구분한다.
     pet_allowed: bool | None
     pet_size: str | None
-    wheelchair_accessible: bool
+    # None은 미입력, False는 무장애 조건 없음으로 구분한다.
+    wheelchair_accessible: bool | None
     preferences: list[str]
 
 
@@ -59,3 +60,4 @@ class TravelState(TypedDict, total=False):
     errors: Annotated[list[str], add]
     messages: Annotated[list[str], add]
     lodging_candidates: list[LodgingCandidate]
+    search_request: object
