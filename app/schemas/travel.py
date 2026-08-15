@@ -12,7 +12,7 @@ class TravelPlanRequest(BaseModel):
     nights: int | None = Field(default=None, ge=0, le=29)
     pet_allowed: bool | None = Field(default=None, description="None은 미입력을 뜻한다")
     pet_size: str | None = None
-    wheelchair_accessible: bool = False
+    wheelchair_accessible: bool | None = None
     preferences: list[str] = Field(default_factory=list)
 
 
@@ -25,7 +25,7 @@ class NormalizedRequest(BaseModel):
     nights: int | None = None
     pet_allowed: bool | None = None
     pet_size: str | None = None
-    wheelchair_accessible: bool = False
+    wheelchair_accessible: bool | None = None
     preferences: list[str] = Field(default_factory=list)
 
 
