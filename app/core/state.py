@@ -60,3 +60,4 @@ class TravelState(TypedDict, total=False):
     errors: Annotated[list[str], add]
     messages: Annotated[list[str], add]
     lodging_candidates: list[LodgingCandidate]
+    search_request: object
