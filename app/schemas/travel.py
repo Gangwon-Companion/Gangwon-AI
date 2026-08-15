@@ -13,6 +13,7 @@ class TravelPlanRequest(BaseModel):
     pet_allowed: bool | None = Field(default=None, description="None은 미입력을 뜻한다")
     pet_size: str | None = None
     wheelchair_accessible: bool | None = None
+    max_price: int | None = Field(default=None, ge=0)
     preferences: list[str] = Field(default_factory=list)
 
 
@@ -26,6 +27,7 @@ class NormalizedRequest(BaseModel):
     pet_allowed: bool | None = None
     pet_size: str | None = None
     wheelchair_accessible: bool | None = None
+    max_price: int | None = Field(default=None, ge=0)
     preferences: list[str] = Field(default_factory=list)
 
 
@@ -49,6 +51,13 @@ class LodgingCandidate(BaseModel):
     missing_fields: list[str] = Field(default_factory=list)
 
 
+class SearchRequest(BaseModel):
+    type: str
+    query: str
+    region: str | None = None
+    filters: dict[str, object] = Field(default_factory=dict)
+
+
 class TravelPlanResponse(BaseModel):
     status: str
     input_complete: bool = False
@@ -63,3 +72,4 @@ class TravelPlanResponse(BaseModel):
     clarification_questions: list[str] = Field(default_factory=list)
     conflicts: list[str] = Field(default_factory=list)
     lodging_candidates: list[LodgingCandidate] = Field(default_factory=list)
+    search_request: SearchRequest | None = None
