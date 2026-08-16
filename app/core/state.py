@@ -26,6 +26,8 @@ class TravelRequest(TypedDict, total=False):
     pet_size: str | None
     # None은 미입력, False는 무장애 조건 없음으로 구분한다.
     wheelchair_accessible: bool | None
+    indoor_pet: bool | None
+    max_price: int | None
     preferences: list[str]
 
 
@@ -61,6 +63,18 @@ class LodgingCandidate(TypedDict, total=False):
     missing_fields: list[str]
 
 
+class RestaurantCandidate(TypedDict, total=False):
+    place_id: str
+    name: str
+    distance_km: float | None
+    cuisine: list[str]
+    score: float
+    status: Literal["OK", "INSUFFICIENT_EVIDENCE"]
+    matched_conditions: list[str]
+    missing_fields: list[str]
+    reason: str
+
+
 class TravelState(TypedDict, total=False):
     request: TravelRequest
     preference_profile: PreferenceProfile
@@ -78,3 +92,5 @@ class TravelState(TypedDict, total=False):
     messages: Annotated[list[str], add]
     lodging_candidates: list[LodgingCandidate]
     search_request: object
+    restaurant_candidates: list[RestaurantCandidate]
+    restaurant_search_request: object

@@ -13,6 +13,7 @@ class TravelPlanRequest(BaseModel):
     pet_allowed: bool | None = Field(default=None, description="None은 미입력을 뜻한다")
     pet_size: str | None = None
     wheelchair_accessible: bool | None = None
+    indoor_pet: bool | None = None
     max_price: int | None = Field(default=None, ge=0)
     preferences: list[str] = Field(default_factory=list)
 
@@ -27,6 +28,7 @@ class NormalizedRequest(BaseModel):
     pet_allowed: bool | None = None
     pet_size: str | None = None
     wheelchair_accessible: bool | None = None
+    indoor_pet: bool | None = None
     max_price: int | None = Field(default=None, ge=0)
     preferences: list[str] = Field(default_factory=list)
 
@@ -51,6 +53,18 @@ class LodgingCandidate(BaseModel):
     missing_fields: list[str] = Field(default_factory=list)
 
 
+class RestaurantCandidate(BaseModel):
+    place_id: str
+    name: str
+    distance_km: float | None = None
+    cuisine: list[str] = Field(default_factory=list)
+    score: float
+    status: str
+    matched_conditions: list[str] = Field(default_factory=list)
+    missing_fields: list[str] = Field(default_factory=list)
+    reason: str
+
+
 class SearchRequest(BaseModel):
     type: str
     query: str
@@ -73,3 +87,5 @@ class TravelPlanResponse(BaseModel):
     conflicts: list[str] = Field(default_factory=list)
     lodging_candidates: list[LodgingCandidate] = Field(default_factory=list)
     search_request: SearchRequest | None = None
+    restaurant_candidates: list[RestaurantCandidate] = Field(default_factory=list)
+    restaurant_search_request: SearchRequest | None = None
