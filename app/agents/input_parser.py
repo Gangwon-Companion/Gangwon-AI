@@ -17,6 +17,7 @@ _DAY_TRIP_KEYWORDS = ("당일치기", "당일 여행")
 _PET_KEYWORDS = ("반려견", "반려동물", "반려묘", "강아지", "댕댕이", "애견", "고양이")
 _PET_SIZE_KEYWORDS = {"소형견": "SMALL", "중형견": "MEDIUM", "대형견": "LARGE"}
 _WHEELCHAIR_KEYWORDS = ("휠체어", "무장애", "배리어프리")
+_INDOOR_PET_KEYWORDS = ("실내 동반", "실내동반", "실내 반려동물", "실내 애견")
 
 # 한국어는 부정어가 키워드 뒤에 온다. 창을 좁게 잡아야 "반려동물 동반 가능한 숙소 없나요"의
 # 뒤쪽 "없"을 부정으로 오인하지 않는다. "안"은 "안고"와 겹치므로 뒤에 공백을 요구한다.
@@ -122,6 +123,10 @@ def form_binder_node(state: TravelState) -> TravelState:
     ):
         request["wheelchair_accessible"] = True
         inferred.append("wheelchair_accessible")
+
+    if request.get("indoor_pet") is None and _detect_flag(message, _INDOOR_PET_KEYWORDS):
+        request["indoor_pet"] = True
+        inferred.append("indoor_pet")
 
     messages = [f"자연어에서 {', '.join(inferred)} 항목을 보완했습니다."] if inferred else []
     return {"request": request, "messages": messages}
