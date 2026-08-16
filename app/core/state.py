@@ -18,12 +18,14 @@ AgentName = Literal[
 
 class TravelRequest(TypedDict, total=False):
     message: str
-    region: str
-    travel_days: int
-    nights: int
-    pet_allowed: bool
-    pet_size: str
-    wheelchair_accessible: bool
+    region: str | None
+    travel_days: int | None
+    nights: int | None
+    # None은 아직 입력받지 못한 상태이며, 반려동물 미동반(False)과 구분한다.
+    pet_allowed: bool | None
+    pet_size: str | None
+    # None은 미입력, False는 무장애 조건 없음으로 구분한다.
+    wheelchair_accessible: bool | None
     preferences: list[str]
 
 
@@ -43,8 +45,25 @@ class DestinationCandidate(TypedDict, total=False):
     matched_conditions: list[str]
 
 
+# PreferenceExtractor가 만든 파생 데이터로, 원본 요청(request)과 분리해 보관한다.
+# soft는 plan.md 6장 SearchRequest의 softPreferences로 그대로 전달한다.
+class PreferenceProfile(TypedDict, total=False):
+    keywords: list[str]
+    soft: dict[str, float]
+    activity_requested: bool
+
+
+class LodgingCandidate(TypedDict, total=False):
+    place_id: str
+    name: str
+    distance_km: float | None
+    status: Literal["OK", "INSUFFICIENT_EVIDENCE"]
+    missing_fields: list[str]
+
+
 class TravelState(TypedDict, total=False):
     request: TravelRequest
+    preference_profile: PreferenceProfile
     input_complete: bool
     missing_fields: list[str]
     clarification_questions: list[str]
@@ -57,3 +76,5 @@ class TravelState(TypedDict, total=False):
     status: Literal["needs_clarification", "planned", "running", "completed", "failed"]
     errors: Annotated[list[str], add]
     messages: Annotated[list[str], add]
+    lodging_candidates: list[LodgingCandidate]
+    search_request: object
