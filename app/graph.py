@@ -7,12 +7,13 @@ from app.agents.input_parser import (
     preference_extractor_node,
 )
 from app.agents.lodging import lodging_node
+from app.agents.restaurant import restaurant_node
 from app.agents.supervisor import supervisor_node
 from app.core.state import TravelState
 
 # 그래프에 실제로 등록된 하위 Agent다. 팀에서 Agent를 추가할 때
 # add_node와 함께 여기에도 이름을 넣으면 Supervisor의 계획에 자동으로 반영된다.
-IMPLEMENTED_AGENT_NODES = {"lodging"}
+IMPLEMENTED_AGENT_NODES = {"lodging", "restaurant"}
 
 
 def _route_after_conflict_checker(state: TravelState) -> str:
@@ -33,7 +34,7 @@ def _dispatch_agents(state: TravelState):
 
 
 # 입력 파서(FormBinder → PreferenceExtractor → ConflictChecker)와 Supervisor까지 연결한다.
-# Supervisor 이후의 하위 Agent는 아직 lodging만 구현되어 있다.
+# Supervisor 이후 구현된 후보 검색 Agent를 병렬로 실행한다.
 def build_graph():
     builder = StateGraph(TravelState)
     builder.add_node("form_binder", form_binder_node)
@@ -41,6 +42,7 @@ def build_graph():
     builder.add_node("conflict_checker", conflict_checker_node)
     builder.add_node("supervisor", supervisor_node)
     builder.add_node("lodging", lodging_node)
+    builder.add_node("restaurant", restaurant_node)
 
     builder.add_edge(START, "form_binder")
     builder.add_edge("form_binder", "preference_extractor")
@@ -52,6 +54,7 @@ def build_graph():
     )
     builder.add_conditional_edges("supervisor", _dispatch_agents)
     builder.add_edge("lodging", END)
+    builder.add_edge("restaurant", END)
     return builder.compile()
 
 

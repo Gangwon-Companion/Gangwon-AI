@@ -6,6 +6,7 @@ from app.schemas.travel import (
     LodgingCandidate,
     NormalizedRequest,
     PreferenceProfile,
+    RestaurantCandidate,
     SearchRequest,
     TravelPlanRequest,
     TravelPlanResponse,
@@ -42,6 +43,14 @@ def create_travel_plan(payload: TravelPlanRequest) -> TravelPlanResponse:
         search_request=(
             SearchRequest(**vars(state["search_request"]))
             if state.get("search_request")
+            else None
+        ),
+        restaurant_candidates=[
+            RestaurantCandidate(**c) for c in state.get("restaurant_candidates", [])
+        ],
+        restaurant_search_request=(
+            SearchRequest(**vars(state["restaurant_search_request"]))
+            if state.get("restaurant_search_request")
             else None
         ),
     )
