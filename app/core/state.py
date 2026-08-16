@@ -27,12 +27,29 @@ class TravelRequest(TypedDict, total=False):
     preferences: list[str]
 
 
+SourceType = Literal["KOREAN", "PET", "ACCESSIBILITY"]
+
+
+class DestinationCandidate(TypedDict, total=False):
+    destination_id: int
+    title: str
+    addr1: str
+    map_x: float
+    map_y: float
+    theme_code: str
+    source_types: list[SourceType]
+    score: float
+    reason: str
+    matched_conditions: list[str]
+
+
 class TravelState(TypedDict, total=False):
     request: TravelRequest
     input_complete: bool
     missing_fields: list[str]
     clarification_questions: list[str]
     conflicts: list[str]
+    destination_candidates: list[DestinationCandidate]
     slots: list[str]
     selected_agents: list[AgentName]
     execution_plan: list[dict[str, object]]
