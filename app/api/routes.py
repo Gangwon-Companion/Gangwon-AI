@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.graph import travel_graph
 from app.schemas.travel import (
     AgentStep,
+    DestinationCandidate,
     LodgingCandidate,
     NormalizedRequest,
     PreferenceProfile,
@@ -39,6 +40,14 @@ def create_travel_plan(payload: TravelPlanRequest) -> TravelPlanResponse:
         missing_fields=state.get("missing_fields", []),
         clarification_questions=state.get("clarification_questions", []),
         conflicts=state.get("conflicts", []),
+        destination_candidates=[
+            DestinationCandidate(**c) for c in state.get("destination_candidates", [])
+        ],
+        destination_search_request=(
+            SearchRequest(**vars(state["destination_search_request"]))
+            if state.get("destination_search_request")
+            else None
+        ),
         lodging_candidates=[LodgingCandidate(**c) for c in state.get("lodging_candidates", [])],
         search_request=(
             SearchRequest(**vars(state["search_request"]))

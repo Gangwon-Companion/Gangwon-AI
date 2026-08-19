@@ -83,6 +83,7 @@ class TravelState(TypedDict, total=False):
     clarification_questions: list[str]
     conflicts: list[str]
     destination_candidates: list[DestinationCandidate]
+    destination_search_request: object
     slots: list[str]
     selected_agents: list[AgentName]
     execution_plan: list[dict[str, object]]
