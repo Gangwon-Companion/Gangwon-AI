@@ -49,11 +49,13 @@ def destination_node(state: TravelState) -> TravelState:
 
     if not candidates:
         return {
+            "destination_search_request": search_request,
             "destination_candidates": [],
             "messages": ["조건에 맞는 관광지 후보를 찾지 못했습니다."]
         }
 
     return {
+        "destination_search_request": search_request,
         "destination_candidates": candidates,
         "messages": [f"관광지 후보 {len(candidates)}개를 찾았습니다."]
     }

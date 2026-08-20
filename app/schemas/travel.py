@@ -45,6 +45,19 @@ class PreferenceProfile(BaseModel):
     activity_requested: bool = False
 
 
+class DestinationCandidate(BaseModel):
+    destination_id: int
+    title: str
+    addr1: str
+    map_x: float
+    map_y: float
+    theme_code: str
+    source_types: list[str] = Field(default_factory=list)
+    score: float
+    reason: str
+    matched_conditions: list[str] = Field(default_factory=list)
+
+
 class LodgingCandidate(BaseModel):
     place_id: str
     name: str
@@ -85,6 +98,8 @@ class TravelPlanResponse(BaseModel):
     missing_fields: list[str] = Field(default_factory=list)
     clarification_questions: list[str] = Field(default_factory=list)
     conflicts: list[str] = Field(default_factory=list)
+    destination_candidates: list[DestinationCandidate] = Field(default_factory=list)
+    destination_search_request: SearchRequest | None = None
     lodging_candidates: list[LodgingCandidate] = Field(default_factory=list)
     search_request: SearchRequest | None = None
     restaurant_candidates: list[RestaurantCandidate] = Field(default_factory=list)
