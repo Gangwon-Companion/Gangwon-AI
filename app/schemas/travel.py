@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pydantic import BaseModel, Field
+from app.search.models import SearchRequest
 
 
 # 필수 정보가 없어도 요청은 받는다. 누락 판정과 재질문은 ConflictChecker가 담당하므로
@@ -76,13 +77,6 @@ class RestaurantCandidate(BaseModel):
     matched_conditions: list[str] = Field(default_factory=list)
     missing_fields: list[str] = Field(default_factory=list)
     reason: str
-
-
-class SearchRequest(BaseModel):
-    type: str
-    query: str
-    region: str | None = None
-    filters: dict[str, object] = Field(default_factory=dict)
 
 
 class TravelPlanResponse(BaseModel):
