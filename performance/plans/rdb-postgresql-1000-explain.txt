@@ -1,0 +1,59 @@
+﻿SET
+                                                                 QUERY PLAN                                                                 
+--------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=0.28..8.93 rows=100 width=129) (actual time=0.025..0.054 rows=100 loops=1)
+   Buffers: shared hit=5
+   ->  Index Scan using restaurants_pkey on restaurants  (cost=0.28..86.78 rows=1000 width=129) (actual time=0.024..0.048 rows=100 loops=1)
+         Filter: ((region)::text = '강릉'::text)
+         Buffers: shared hit=5
+ Planning:
+   Buffers: shared hit=122
+ Planning Time: 1.088 ms
+ Execution Time: 0.143 ms
+(9 rows)
+
+                                                                                             QUERY PLAN                                                                                              
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=49.51..49.52 rows=1 width=129) (actual time=1.374..1.389 rows=100 loops=1)
+   Buffers: shared hit=25
+   ->  Sort  (cost=49.51..49.52 rows=1 width=129) (actual time=1.373..1.381 rows=100 loops=1)
+         Sort Key: id
+         Sort Method: top-N heapsort  Memory: 50kB
+         Buffers: shared hit=25
+         ->  Seq Scan on restaurants  (cost=0.00..49.50 rows=1 width=129) (actual time=0.017..1.204 rows=500 loops=1)
+               Filter: (((region)::text = '강릉'::text) AND ((lower((name)::text) ~~ '%한식%'::text) OR (lower((menu_type)::text) ~~ '%한식%'::text) OR (lower((address)::text) ~~ '%한식%'::text)))
+               Rows Removed by Filter: 500
+               Buffers: shared hit=22
+ Planning Time: 0.097 ms
+ Execution Time: 1.436 ms
+(12 rows)
+
+                                                                                                                      QUERY PLAN                                                                                                                       
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=0.28..9.93 rows=100 width=129) (actual time=0.016..0.041 rows=100 loops=1)
+   Buffers: shared hit=5
+   ->  Index Scan using restaurants_pkey on restaurants  (cost=0.28..96.78 rows=1000 width=129) (actual time=0.016..0.035 rows=100 loops=1)
+         Filter: ((latitude >= '37.731981'::double precision) AND (latitude <= '37.768018'::double precision) AND (longitude >= '128.877407'::double precision) AND (longitude <= '128.922592'::double precision) AND ((region)::text = '강릉'::text))
+         Buffers: shared hit=5
+ Planning Time: 0.074 ms
+ Execution Time: 0.060 ms
+(7 rows)
+
+                                                                                                                     QUERY PLAN                                                                                                                      
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=52.51..52.52 rows=1 width=155) (actual time=1.017..1.017 rows=0 loops=1)
+   Buffers: shared hit=25
+   ->  Sort  (cost=52.51..52.52 rows=1 width=155) (actual time=1.016..1.016 rows=0 loops=1)
+         Sort Key: id
+         Sort Method: quicksort  Memory: 25kB
+         Buffers: shared hit=25
+         ->  Seq Scan on lodgings  (cost=0.00..52.50 rows=1 width=155) (actual time=1.006..1.006 rows=0 loops=1)
+               Filter: (((region)::text = '강릉'::text) AND ((lower((name)::text) ~~ '%존재하지않는희소검색어%'::text) OR (lower(description) ~~ '%존재하지않는희소검색어%'::text) OR (lower((address)::text) ~~ '%존재하지않는희소검색어%'::text)))
+               Rows Removed by Filter: 1000
+               Buffers: shared hit=25
+ Planning:
+   Buffers: shared hit=65
+ Planning Time: 0.585 ms
+ Execution Time: 1.037 ms
+(14 rows)
+
