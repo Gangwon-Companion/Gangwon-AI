@@ -75,6 +75,60 @@ class RestaurantCandidate(TypedDict, total=False):
     reason: str
 
 
+class ItinerarySlot(TypedDict, total=False):
+    slot: str
+    place_id: str
+    name: str
+    category: Literal["DESTINATION", "RESTAURANT", "LODGING", "ACTIVITY"]
+    start_at: str
+    end_at: str
+    latitude: float
+    longitude: float
+    travel_minutes_from_previous: int
+    pet_allowed: bool | None
+    max_pet_size: str | None
+    indoor_pet_allowed: bool | None
+    wheelchair_accessible: bool | None
+    opens_at: str | None
+    closes_at: str | None
+    source_ids: list[str]
+    tags: list[str]
+
+
+class ValidationAction(TypedDict, total=False):
+    agent: AgentName
+    slots: list[str]
+    instruction: str
+
+
+class HardViolation(TypedDict, total=False):
+    code: str
+    slots: list[str]
+    place_id: str
+    reason: str
+    source_ids: list[str]
+
+
+class HardValidationResult(TypedDict):
+    status: Literal["VALID", "INVALID"]
+    violations: list[HardViolation]
+    next_actions: list[ValidationAction]
+
+
+class QualityIssue(TypedDict, total=False):
+    type: str
+    severity: Literal["MINOR", "MAJOR"]
+    slots: list[str]
+    reason: str
+
+
+class QualityValidationResult(TypedDict):
+    status: Literal["PASS", "REVISE"]
+    score: int
+    issues: list[QualityIssue]
+    next_actions: list[ValidationAction]
+
+
 class TravelState(TypedDict, total=False):
     request: TravelRequest
     preference_profile: PreferenceProfile
@@ -95,3 +149,7 @@ class TravelState(TypedDict, total=False):
     search_request: object
     restaurant_candidates: list[RestaurantCandidate]
     restaurant_search_request: object
+    itinerary: list[ItinerarySlot]
+    hard_validation: HardValidationResult
+    quality_validation: QualityValidationResult
+    retry_actions: list[ValidationAction]

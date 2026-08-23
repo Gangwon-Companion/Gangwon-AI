@@ -7,3 +7,5 @@ __pycache__/
 .idea/
 *.iml
 RESTAURANT_AGENT.md
+VALIDATION_AGENT.md
+VALIDATION_STATUS.md

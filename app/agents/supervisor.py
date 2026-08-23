@@ -4,6 +4,7 @@ from app.core.state import AgentName, TravelState
 
 
 BASE_PARALLEL_AGENTS: list[AgentName] = ["destination", "restaurant", "lodging"]
+MAX_VALIDATION_RETRIES = 3
 
 
 # 여행 일수만큼 슬롯을 전개한다. Itinerary Agent가 슬롯 단위로 후보를 모으므로
@@ -65,4 +66,55 @@ def supervisor_node(state: TravelState) -> TravelState:
         "retry_count": state.get("retry_count", 0),
         "status": "planned",
         "messages": messages,
+    }
+
+
+def validation_retry_node(state: TravelState) -> TravelState:
+    """검증기의 수정 요청을 다음 부분 재실행 계획으로 변환한다."""
+    retry_count = state.get("retry_count", 0) + 1
+    actions = state.get("retry_actions", [])
+    if retry_count > MAX_VALIDATION_RETRIES:
+        return {
+            "retry_count": retry_count,
+            "status": "failed",
+            "execution_plan": [],
+            "messages": ["최대 검증 재시도 횟수를 초과했습니다."],
+        }
+
+    merged: dict[tuple[AgentName, tuple[str, ...]], list[str]] = {}
+    for action in actions:
+        agent = action.get("agent", "itinerary")
+        slots = tuple(sorted(action.get("slots", [])))
+        merged.setdefault((agent, slots), []).append(action.get("instruction", ""))
+
+    execution_plan: list[dict[str, object]] = []
+    domain_agents: list[AgentName] = []
+    for (agent, slots), instructions in merged.items():
+        if agent != "itinerary" and agent not in domain_agents:
+            domain_agents.append(agent)
+        execution_plan.append(
+            {
+                "agent": agent,
+                "mode": "parallel" if agent != "itinerary" else "sequential",
+                "depends_on": [],
+                "slots": list(slots),
+                "instruction": " ".join(filter(None, instructions)),
+            }
+        )
+
+    if domain_agents and not any(step["agent"] == "itinerary" for step in execution_plan):
+        execution_plan.append(
+            {"agent": "itinerary", "mode": "sequential", "depends_on": domain_agents}
+        )
+    execution_plan.extend(
+        [
+            {"agent": "validator", "mode": "sequential", "depends_on": ["itinerary"]},
+            {"agent": "validation", "mode": "sequential", "depends_on": ["validator"]},
+        ]
+    )
+    return {
+        "retry_count": retry_count,
+        "status": "planned",
+        "execution_plan": execution_plan,
+        "messages": [f"검증 결과에 따라 {len(merged)}개 작업을 부분 재실행합니다."],
     }

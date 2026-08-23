@@ -85,6 +85,71 @@ class SearchRequest(BaseModel):
     filters: dict[str, object] = Field(default_factory=dict)
 
 
+class ValidationAction(BaseModel):
+    agent: str
+    slots: list[str] = Field(default_factory=list)
+    instruction: str
+
+
+class HardViolation(BaseModel):
+    code: str
+    slots: list[str] = Field(default_factory=list)
+    place_id: str = ""
+    reason: str
+    source_ids: list[str] = Field(default_factory=list)
+
+
+class HardValidationResult(BaseModel):
+    status: str
+    violations: list[HardViolation] = Field(default_factory=list)
+    next_actions: list[ValidationAction] = Field(default_factory=list)
+
+
+class QualityIssue(BaseModel):
+    type: str
+    severity: str
+    slots: list[str] = Field(default_factory=list)
+    reason: str
+
+
+class QualityValidationResult(BaseModel):
+    status: str
+    score: int = Field(ge=0, le=100)
+    issues: list[QualityIssue] = Field(default_factory=list)
+    next_actions: list[ValidationAction] = Field(default_factory=list)
+
+
+class ItinerarySlot(BaseModel):
+    slot: str
+    place_id: str
+    name: str
+    category: str
+    start_at: str
+    end_at: str
+    latitude: float | None = None
+    longitude: float | None = None
+    travel_minutes_from_previous: int = Field(default=0, ge=0)
+    pet_allowed: bool | None = None
+    max_pet_size: str | None = None
+    indoor_pet_allowed: bool | None = None
+    wheelchair_accessible: bool | None = None
+    opens_at: str | None = None
+    closes_at: str | None = None
+    source_ids: list[str] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
+
+
+class ValidationRequest(BaseModel):
+    request: TravelPlanRequest
+    preference_profile: PreferenceProfile = Field(default_factory=PreferenceProfile)
+    itinerary: list[ItinerarySlot] = Field(min_length=1)
+
+
+class ValidationResponse(BaseModel):
+    hard_validation: HardValidationResult
+    quality_validation: QualityValidationResult | None = None
+
+
 class TravelPlanResponse(BaseModel):
     status: str
     input_complete: bool = False
@@ -104,3 +169,5 @@ class TravelPlanResponse(BaseModel):
     search_request: SearchRequest | None = None
     restaurant_candidates: list[RestaurantCandidate] = Field(default_factory=list)
     restaurant_search_request: SearchRequest | None = None
+    hard_validation: HardValidationResult | None = None
+    quality_validation: QualityValidationResult | None = None
