@@ -118,6 +118,14 @@ class ItineraryAgentTests(unittest.TestCase):
                     "score": 0.9,
                     "status": "OK",
                     "cuisine": ["KOREAN"],
+                    "address": "강릉시 중앙로 1",
+                    "opens_at": "09:00",
+                    "closes_at": "21:00",
+                    "pet_allowed": True,
+                    "wheelchair_accessible": True,
+                    "reason": "한식 선호와 일치합니다.",
+                    "matched_conditions": ["한식"],
+                    "source_ids": ["restaurant:R1"],
                 },
                 {
                     "place_id": "R2",
@@ -132,6 +140,14 @@ class ItineraryAgentTests(unittest.TestCase):
         self.assertEqual("READY", result["itinerary_status"])
         self.assertEqual(3, len(result["itinerary"]))
         self.assertEqual([], result["missing_slots"])
+        restaurant = next(
+            item for item in result["itinerary"] if item["place_id"] == "R1"
+        )
+        self.assertEqual(restaurant["address"], "강릉시 중앙로 1")
+        self.assertEqual(restaurant["opens_at"], "09:00")
+        self.assertTrue(restaurant["pet_allowed"])
+        self.assertEqual(restaurant["source_ids"], ["restaurant:R1"])
+        self.assertEqual(restaurant["matched_conditions"], ["한식"])
 
     def test_requests_only_missing_domain(self) -> None:
         state = {

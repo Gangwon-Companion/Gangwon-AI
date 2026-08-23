@@ -41,6 +41,10 @@ class SearchIntegrationTest(unittest.TestCase):
 
         self.assertEqual(len(result["restaurant_candidates"]), 2)
         self.assertEqual(result["restaurant_candidates"][1]["status"], "INSUFFICIENT_EVIDENCE")
+        candidate = result["restaurant_candidates"][0]
+        self.assertEqual(candidate["address"], "강원특별자치도 강릉시 창해로 14번길")
+        self.assertTrue(candidate["pet_allowed"])
+        self.assertTrue(candidate["source_ids"])
 
     @patch("app.agents.lodging.search_client")
     def test_lodging_agent_distinguishes_search_failure(self, client: Mock) -> None:

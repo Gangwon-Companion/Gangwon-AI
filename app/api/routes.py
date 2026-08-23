@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.agents.validation import validation_node
 from app.agents.itinerary import itinerary_node
+from app.agents.response import response_node
 from app.graph import travel_graph
 from app.validators.hard_validator import hard_validator_node
 from app.schemas.travel import (
@@ -22,6 +23,8 @@ from app.schemas.travel import (
     QualityValidationResult,
     ValidationRequest,
     ValidationResponse,
+    FinalTravelResponse,
+    ResponsePreviewRequest,
 )
 
 router = APIRouter(prefix="/internal", tags=["travel"])
@@ -76,6 +79,25 @@ def preview_itinerary(payload: ItineraryPreviewRequest) -> ItineraryResult:
         missing_slots=result.get("missing_slots", []),
         retry_actions=[RetryAction(**item) for item in result.get("retry_actions", [])],
     )
+
+
+@router.post(
+    "/travel/response/preview",
+    response_model=FinalTravelResponse,
+    summary="검증 완료 일정의 최종 답변 미리보기",
+    description="검증된 일정과 원본 근거 문서를 결합해 사용자용 답변을 생성합니다.",
+)
+def preview_response(payload: ResponsePreviewRequest) -> FinalTravelResponse:
+    state = {
+        "request": payload.request.model_dump(exclude_unset=True),
+        "preference_profile": payload.preference_profile.model_dump(),
+        "itinerary_status": payload.itinerary_status,
+        "itinerary": [item.model_dump() for item in payload.itinerary],
+        "hard_validation": payload.hard_validation.model_dump(),
+        "quality_validation": payload.quality_validation.model_dump(),
+    }
+    result = response_node(state)  # type: ignore[arg-type]
+    return FinalTravelResponse.model_validate(result["final_response"])
 
 
 @router.post("/travel/plan", response_model=TravelPlanResponse)
