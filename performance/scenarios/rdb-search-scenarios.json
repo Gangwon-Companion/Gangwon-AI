@@ -1,0 +1,11 @@
+{
+  "version": "rdb-v1",
+  "scenarios": [
+    {"id":"restaurant-region","type":"simple_filter","domain":"RESTAURANT","region_codes":["GANGNEUNG"],"query_text":""},
+    {"id":"restaurant-keyword","type":"keyword","domain":"RESTAURANT","region_codes":["GANGNEUNG"],"query_text":"한식"},
+    {"id":"restaurant-multi-filter","type":"multi_filter","domain":"RESTAURANT","region_codes":["GANGNEUNG"],"query_text":"카페","hard_filters":{"pet_allowed":true,"pet_size":"SMALL","wheelchair_accessible":true}},
+    {"id":"restaurant-geo","type":"geo","domain":"RESTAURANT","region_codes":["GANGNEUNG"],"query_text":"","geo":{"center":{"lat":37.75,"lon":128.90},"radius_km":2.0}},
+    {"id":"lodging-keyword","type":"keyword","domain":"LODGING","region_codes":["GANGNEUNG"],"query_text":"바다"},
+    {"id":"lodging-sparse","type":"sparse_result","domain":"LODGING","region_codes":["GANGNEUNG"],"query_text":"존재하지않는희소검색어"}
+  ]
+}
