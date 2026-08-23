@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pydantic import BaseModel, Field
+from app.search.models import SearchRequest
 
 
 # 필수 정보가 없어도 요청은 받는다. 누락 판정과 재질문은 ConflictChecker가 담당하므로
@@ -64,6 +65,10 @@ class LodgingCandidate(BaseModel):
     distance_km: float | None = None
     status: str
     missing_fields: list[str] = Field(default_factory=list)
+    latitude: float | None = None
+    longitude: float | None = None
+    opens_at: str | None = None
+    closes_at: str | None = None
 
 
 class RestaurantCandidate(BaseModel):
@@ -76,16 +81,34 @@ class RestaurantCandidate(BaseModel):
     matched_conditions: list[str] = Field(default_factory=list)
     missing_fields: list[str] = Field(default_factory=list)
     reason: str
+    latitude: float | None = None
+    longitude: float | None = None
+    opens_at: str | None = None
+    closes_at: str | None = None
 
 
-class SearchRequest(BaseModel):
-    type: str
-    query: str
-    region: str | None = None
-    filters: dict[str, object] = Field(default_factory=dict)
+class ScheduledVisit(BaseModel):
+    slot: str
+    day: int
+    place_id: str
+    name: str
+    category: str
+    start_time: str
+    end_time: str
+    travel_minutes_from_previous: int = 0
+    latitude: float | None = None
+    longitude: float | None = None
+    source_ids: list[str] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
 
 
 class ValidationAction(BaseModel):
+    agent: str
+    slots: list[str] = Field(default_factory=list)
+    instruction: str
+
+
+class RetryAction(BaseModel):
     agent: str
     slots: list[str] = Field(default_factory=list)
     instruction: str
@@ -150,6 +173,22 @@ class ValidationResponse(BaseModel):
     quality_validation: QualityValidationResult | None = None
 
 
+class ItineraryPreviewRequest(BaseModel):
+    slots: list[str] = Field(min_length=1)
+    preference_profile: PreferenceProfile = Field(default_factory=PreferenceProfile)
+    destination_candidates: list[DestinationCandidate] = Field(default_factory=list)
+    restaurant_candidates: list[RestaurantCandidate] = Field(default_factory=list)
+    lodging_candidates: list[LodgingCandidate] = Field(default_factory=list)
+
+
+class ItineraryResult(BaseModel):
+    itinerary_status: str
+    itinerary: list[ScheduledVisit] = Field(default_factory=list)
+    itinerary_score: float | None = None
+    itinerary_alternatives: list[list[ScheduledVisit]] = Field(default_factory=list)
+    missing_slots: list[str] = Field(default_factory=list)
+    retry_actions: list[RetryAction] = Field(default_factory=list)
+
 class TravelPlanResponse(BaseModel):
     status: str
     input_complete: bool = False
@@ -171,3 +210,9 @@ class TravelPlanResponse(BaseModel):
     restaurant_search_request: SearchRequest | None = None
     hard_validation: HardValidationResult | None = None
     quality_validation: QualityValidationResult | None = None
+    itinerary_status: str | None = None
+    itinerary: list[ScheduledVisit] = Field(default_factory=list)
+    itinerary_score: float | None = None
+    itinerary_alternatives: list[list[ScheduledVisit]] = Field(default_factory=list)
+    missing_slots: list[str] = Field(default_factory=list)
+    retry_actions: list[RetryAction] = Field(default_factory=list)

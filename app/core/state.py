@@ -61,6 +61,10 @@ class LodgingCandidate(TypedDict, total=False):
     distance_km: float | None
     status: Literal["OK", "INSUFFICIENT_EVIDENCE"]
     missing_fields: list[str]
+    latitude: float
+    longitude: float
+    opens_at: str | None
+    closes_at: str | None
 
 
 class RestaurantCandidate(TypedDict, total=False):
@@ -73,6 +77,31 @@ class RestaurantCandidate(TypedDict, total=False):
     matched_conditions: list[str]
     missing_fields: list[str]
     reason: str
+    latitude: float
+    longitude: float
+    opens_at: str | None
+    closes_at: str | None
+
+
+class ScheduledVisit(TypedDict, total=False):
+    slot: str
+    day: int
+    place_id: str
+    name: str
+    category: Literal["DESTINATION", "RESTAURANT", "LODGING", "ACTIVITY"]
+    start_time: str
+    end_time: str
+    travel_minutes_from_previous: int
+    latitude: float | None
+    longitude: float | None
+    source_ids: list[str]
+    tags: list[str]
+
+
+class RetryAction(TypedDict):
+    agent: AgentName
+    slots: list[str]
+    instruction: str
 
 
 class ItinerarySlot(TypedDict, total=False):
@@ -140,8 +169,11 @@ class TravelState(TypedDict, total=False):
     destination_search_request: object
     slots: list[str]
     selected_agents: list[AgentName]
+    completed_agents: Annotated[list[AgentName], add]
+    candidates_ready: bool
     execution_plan: list[dict[str, object]]
     retry_count: int
+    retry_agents: list[AgentName]
     status: Literal["needs_clarification", "planned", "running", "completed", "failed"]
     errors: Annotated[list[str], add]
     messages: Annotated[list[str], add]
@@ -149,7 +181,11 @@ class TravelState(TypedDict, total=False):
     search_request: object
     restaurant_candidates: list[RestaurantCandidate]
     restaurant_search_request: object
-    itinerary: list[ItinerarySlot]
+    itinerary: list[ItinerarySlot | ScheduledVisit]
     hard_validation: HardValidationResult
     quality_validation: QualityValidationResult
-    retry_actions: list[ValidationAction]
+    itinerary_status: Literal["READY", "NEEDS_CANDIDATES"]
+    itinerary_score: float
+    itinerary_alternatives: list[list[ScheduledVisit]]
+    missing_slots: list[str]
+    retry_actions: list[ValidationAction | RetryAction]

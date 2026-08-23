@@ -1,0 +1,39 @@
+{
+  "results": [
+    {
+      "place_id": "DESTINATION:102",
+      "domain": "DESTINATION",
+      "name": "안목해변",
+      "address": "강원특별자치도 강릉시 창해로 14번길",
+      "location": {
+        "lat": 37.77,
+        "lon": 128.95
+      },
+      "distance_km": 4.9,
+      "score": 0.86,
+      "status": "OK",
+      "missing_fields": [],
+      "matched_preferences": ["ocean_view"],
+      "evidence": [
+        {
+          "field": "pet_allowed",
+          "value": true,
+          "source": "TOUR_API"
+        }
+      ]
+    },
+    {
+      "place_id": "DESTINATION:103",
+      "domain": "DESTINATION",
+      "name": "근거 확인이 필요한 해변",
+      "address": null,
+      "location": null,
+      "distance_km": null,
+      "score": 0.41,
+      "status": "INSUFFICIENT_EVIDENCE",
+      "missing_fields": ["wheelchair_accessible"],
+      "matched_preferences": [],
+      "evidence": []
+    }
+  ]
+}

@@ -1,0 +1,102 @@
+[
+  {
+    "id": "destination-region-only",
+    "request": {"domain": "DESTINATION", "slot": "D1_DESTINATION", "region_codes": ["GANGNEUNG"], "limit": 5},
+    "expectation": "강릉 관광지만 반환"
+  },
+  {
+    "id": "destination-keyword",
+    "request": {"domain": "DESTINATION", "slot": "D1_DESTINATION", "region_codes": ["GANGNEUNG"], "query_text": "바다 산책", "limit": 10},
+    "expectation": "이름·설명·분류에서 모든 키워드를 평가"
+  },
+  {
+    "id": "destination-pet-small",
+    "request": {"domain": "DESTINATION", "slot": "D1_DESTINATION", "region_codes": ["GANGNEUNG"], "hard_filters": {"pet_allowed": true, "pet_size": "SMALL"}, "limit": 5},
+    "expectation": "소형 반려동물 동반 근거가 있는 장소 우선"
+  },
+  {
+    "id": "destination-wheelchair",
+    "request": {"domain": "DESTINATION", "slot": "D1_DESTINATION", "region_codes": ["SOKCHO"], "hard_filters": {"wheelchair_accessible": true}, "limit": 5},
+    "expectation": "휠체어 접근 가능 근거가 있는 장소 반환"
+  },
+  {
+    "id": "destination-pet-and-wheelchair",
+    "request": {"domain": "DESTINATION", "slot": "D2_DESTINATION", "region_codes": ["CHUNCHEON"], "hard_filters": {"pet_allowed": true, "pet_size": "MEDIUM", "wheelchair_accessible": true}, "limit": 5},
+    "expectation": "모든 hard filter를 AND로 적용"
+  },
+  {
+    "id": "destination-geo",
+    "request": {"domain": "DESTINATION", "slot": "D1_DESTINATION", "region_codes": [], "geo": {"center": {"lat": 37.7519, "lon": 128.8761}, "radius_km": 10}, "limit": 10},
+    "expectation": "반경 10km 안의 장소만 반환하고 거리 계산"
+  },
+  {
+    "id": "destination-multi-region",
+    "request": {"domain": "DESTINATION", "slot": "D1_DESTINATION", "region_codes": ["GANGNEUNG", "SOKCHO"], "limit": 20},
+    "expectation": "두 지역 중 하나에 속하는 장소 반환"
+  },
+  {
+    "id": "destination-soft-preference",
+    "request": {"domain": "DESTINATION", "slot": "D1_DESTINATION", "region_codes": ["GANGNEUNG"], "soft_preferences": {"quiet": 0.9, "ocean_view": 0.8}, "limit": 5},
+    "expectation": "soft preference는 탈락 조건이 아니라 점수에 반영"
+  },
+  {
+    "id": "restaurant-region-only",
+    "request": {"domain": "RESTAURANT", "slot": "D1_LUNCH", "region_codes": ["GANGNEUNG"], "limit": 5},
+    "expectation": "강릉 음식점만 반환"
+  },
+  {
+    "id": "restaurant-menu-keyword",
+    "request": {"domain": "RESTAURANT", "slot": "D1_DINNER", "region_codes": ["GANGNEUNG"], "query_text": "초당 순두부", "limit": 10},
+    "expectation": "이름·메뉴 유형·주소의 키워드 일치 평가"
+  },
+  {
+    "id": "restaurant-pet-unknown",
+    "request": {"domain": "RESTAURANT", "slot": "D1_LUNCH", "region_codes": ["SOKCHO"], "hard_filters": {"pet_allowed": true}, "limit": 5},
+    "expectation": "현재 근거 부재를 false로 만들지 않고 근거 부족으로 구분"
+  },
+  {
+    "id": "restaurant-geo",
+    "request": {"domain": "RESTAURANT", "slot": "D2_DINNER", "region_codes": ["GANGNEUNG"], "geo": {"center": {"lat": 37.77, "lon": 128.95}, "radius_km": 5}, "limit": 10},
+    "expectation": "이전 관광지 주변 음식점을 거리순 요소와 함께 평가"
+  },
+  {
+    "id": "lodging-region-only",
+    "request": {"domain": "LODGING", "slot": "D1_LODGING", "region_codes": ["GANGNEUNG"], "limit": 5},
+    "expectation": "강릉 숙소만 반환"
+  },
+  {
+    "id": "lodging-description-keyword",
+    "request": {"domain": "LODGING", "slot": "D1_LODGING", "region_codes": ["GANGNEUNG"], "query_text": "오션뷰 펜션", "limit": 10},
+    "expectation": "이름과 설명의 키워드 일치 평가"
+  },
+  {
+    "id": "lodging-pet-policy-unknown",
+    "request": {"domain": "LODGING", "slot": "D1_LODGING", "region_codes": ["YANGYANG"], "hard_filters": {"pet_allowed": true, "pet_size": "LARGE"}, "limit": 5},
+    "expectation": "현재 숙소 정책 근거 부재를 명시"
+  },
+  {
+    "id": "lodging-wheelchair-unknown",
+    "request": {"domain": "LODGING", "slot": "D2_LODGING", "region_codes": ["PYEONGCHANG"], "hard_filters": {"wheelchair_accessible": true}, "limit": 5},
+    "expectation": "현재 무장애 객실 근거 부재를 명시"
+  },
+  {
+    "id": "restaurant-wheelchair-unknown",
+    "request": {"domain": "RESTAURANT", "slot": "D2_LUNCH", "region_codes": ["WONJU"], "hard_filters": {"wheelchair_accessible": true}, "limit": 5},
+    "expectation": "현재 음식점 무장애 근거 부재를 명시"
+  },
+  {
+    "id": "lodging-geo-and-keyword",
+    "request": {"domain": "LODGING", "slot": "D2_LODGING", "region_codes": ["SOKCHO"], "query_text": "바다 전망", "geo": {"center": {"lat": 38.207, "lon": 128.5918}, "radius_km": 15}, "limit": 10},
+    "expectation": "숙소 키워드와 반경 조건을 함께 적용"
+  },
+  {
+    "id": "destination-large-limit",
+    "request": {"domain": "DESTINATION", "slot": "D3_DESTINATION", "region_codes": [], "query_text": "자연", "limit": 100},
+    "expectation": "허용된 최대 결과 수에서 안정적으로 정렬"
+  },
+  {
+    "id": "empty-result",
+    "request": {"domain": "DESTINATION", "slot": "D1_DESTINATION", "region_codes": ["TAEBAEK"], "query_text": "존재하지않는검색어", "hard_filters": {"pet_allowed": true, "pet_size": "LARGE", "wheelchair_accessible": true}, "limit": 5},
+    "expectation": "결과 0건은 오류가 아닌 빈 results로 반환"
+  }
+]

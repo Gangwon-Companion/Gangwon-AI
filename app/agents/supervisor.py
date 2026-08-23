@@ -5,6 +5,7 @@ from app.core.state import AgentName, TravelState
 
 BASE_PARALLEL_AGENTS: list[AgentName] = ["destination", "restaurant", "lodging"]
 MAX_VALIDATION_RETRIES = 3
+MAX_ITINERARY_RETRIES = 3
 
 
 # 여행 일수만큼 슬롯을 전개한다. Itinerary Agent가 슬롯 단위로 후보를 모으므로
@@ -117,4 +118,44 @@ def validation_retry_node(state: TravelState) -> TravelState:
         "status": "planned",
         "execution_plan": execution_plan,
         "messages": [f"검증 결과에 따라 {len(merged)}개 작업을 부분 재실행합니다."],
+    }
+
+
+def candidate_retry_node(state: TravelState) -> TravelState:
+    """후보 부족 결과를 읽고 필요한 전문 Agent만 다시 실행하도록 준비한다."""
+    retry_count = state.get("retry_count", 0) + 1
+    requested_agents = [
+        action.get("agent") for action in state.get("retry_actions", [])
+    ]
+    retry_agents: list[AgentName] = []
+    for agent in requested_agents:
+        if agent in BASE_PARALLEL_AGENTS and agent not in retry_agents:
+            retry_agents.append(agent)
+
+    if retry_count > MAX_ITINERARY_RETRIES:
+        return {
+            "retry_count": retry_count,
+            "retry_agents": [],
+            "status": "failed",
+            "errors": ["일정 후보 검색의 최대 재시도 횟수를 초과했습니다."],
+            "messages": ["후보 부족 문제를 해결하지 못해 일정 생성을 종료합니다."],
+        }
+
+    if not retry_agents:
+        return {
+            "retry_count": retry_count,
+            "retry_agents": [],
+            "status": "failed",
+            "errors": ["재실행할 수 있는 후보 검색 Agent가 없습니다."],
+            "messages": ["후보 재검색 대상을 결정하지 못했습니다."],
+        }
+
+    return {
+        "retry_count": retry_count,
+        "retry_agents": retry_agents,
+        "status": "running",
+        "messages": [
+            f"후보 부족으로 {', '.join(retry_agents)} Agent를 재실행합니다. "
+            f"({retry_count}/{MAX_ITINERARY_RETRIES})"
+        ],
     }

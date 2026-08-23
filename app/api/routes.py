@@ -1,15 +1,20 @@
 from fastapi import APIRouter
 
 from app.agents.validation import validation_node
+from app.agents.itinerary import itinerary_node
 from app.graph import travel_graph
 from app.validators.hard_validator import hard_validator_node
 from app.schemas.travel import (
     AgentStep,
     DestinationCandidate,
     LodgingCandidate,
+    ItineraryPreviewRequest,
+    ItineraryResult,
     NormalizedRequest,
     PreferenceProfile,
     RestaurantCandidate,
+    RetryAction,
+    ScheduledVisit,
     SearchRequest,
     TravelPlanRequest,
     TravelPlanResponse,
@@ -45,6 +50,34 @@ def validate_travel_plan(payload: ValidationRequest) -> ValidationResponse:
     )
 
 
+@router.post(
+    "/travel/itinerary/preview",
+    response_model=ItineraryResult,
+    summary="후보 기반 일정 최적화 미리보기",
+    description="전문 Agent의 후보를 직접 입력해 Itinerary Optimizer 결과를 확인합니다.",
+)
+def preview_itinerary(payload: ItineraryPreviewRequest) -> ItineraryResult:
+    state = {
+        "slots": payload.slots,
+        "preference_profile": payload.preference_profile.model_dump(),
+        "destination_candidates": [item.model_dump() for item in payload.destination_candidates],
+        "restaurant_candidates": [item.model_dump() for item in payload.restaurant_candidates],
+        "lodging_candidates": [item.model_dump() for item in payload.lodging_candidates],
+    }
+    result = itinerary_node(state)  # type: ignore[arg-type]
+    return ItineraryResult(
+        itinerary_status=result["itinerary_status"],
+        itinerary=[ScheduledVisit(**item) for item in result.get("itinerary", [])],
+        itinerary_score=result.get("itinerary_score"),
+        itinerary_alternatives=[
+            [ScheduledVisit(**item) for item in plan]
+            for plan in result.get("itinerary_alternatives", [])
+        ],
+        missing_slots=result.get("missing_slots", []),
+        retry_actions=[RetryAction(**item) for item in result.get("retry_actions", [])],
+    )
+
+
 @router.post("/travel/plan", response_model=TravelPlanResponse)
 # 사용자 요청을 LangGraph에 전달하고 계획 또는 추가 질문을 반환한다.
 # 필수 정보가 없으면 input_complete=false와 clarification_questions를 돌려준다.
@@ -73,13 +106,13 @@ def create_travel_plan(payload: TravelPlanRequest) -> TravelPlanResponse:
             DestinationCandidate(**c) for c in state.get("destination_candidates", [])
         ],
         destination_search_request=(
-            SearchRequest(**vars(state["destination_search_request"]))
+            SearchRequest.model_validate(state["destination_search_request"])
             if state.get("destination_search_request")
             else None
         ),
         lodging_candidates=[LodgingCandidate(**c) for c in state.get("lodging_candidates", [])],
         search_request=(
-            SearchRequest(**vars(state["search_request"]))
+            SearchRequest.model_validate(state["search_request"])
             if state.get("search_request")
             else None
         ),
@@ -87,7 +120,7 @@ def create_travel_plan(payload: TravelPlanRequest) -> TravelPlanResponse:
             RestaurantCandidate(**c) for c in state.get("restaurant_candidates", [])
         ],
         restaurant_search_request=(
-            SearchRequest(**vars(state["restaurant_search_request"]))
+            SearchRequest.model_validate(state["restaurant_search_request"])
             if state.get("restaurant_search_request")
             else None
         ),
@@ -101,4 +134,13 @@ def create_travel_plan(payload: TravelPlanRequest) -> TravelPlanResponse:
             if state.get("quality_validation")
             else None
         ),
+        itinerary_status=state.get("itinerary_status"),
+        itinerary=[ScheduledVisit(**item) for item in state.get("itinerary", [])],
+        itinerary_score=state.get("itinerary_score"),
+        itinerary_alternatives=[
+            [ScheduledVisit(**item) for item in plan]
+            for plan in state.get("itinerary_alternatives", [])
+        ],
+        missing_slots=state.get("missing_slots", []),
+        retry_actions=[RetryAction(**item) for item in state.get("retry_actions", [])],
     )
