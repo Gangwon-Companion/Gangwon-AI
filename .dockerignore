@@ -1,0 +1,14 @@
+.git
+.github
+.venv
+__pycache__
+*.py[cod]
+.pytest_cache
+.mypy_cache
+.env
+.idea
+*.iml
+tests
+docs
+performance
+RESTAURANT_AGENT.md
