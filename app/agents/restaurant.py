@@ -54,6 +54,8 @@ _MOCK_RESTAURANTS: list[dict[str, object]] = [
         "indoor_pet": True,
         "wheelchair_accessible": True,
         "open_now": True,
+        "opens_at": "09:00",
+        "closes_at": "22:00",
         "base_score": 0.90,
     },
     {
@@ -67,6 +69,8 @@ _MOCK_RESTAURANTS: list[dict[str, object]] = [
         "indoor_pet": False,
         "wheelchair_accessible": True,
         "open_now": True,
+        "opens_at": "11:00",
+        "closes_at": "21:00",
         "base_score": 0.86,
     },
     {
@@ -80,6 +84,8 @@ _MOCK_RESTAURANTS: list[dict[str, object]] = [
         "indoor_pet": None,
         "wheelchair_accessible": None,
         "open_now": True,
+        "opens_at": "10:00",
+        "closes_at": "20:00",
         "base_score": 0.82,
     },
 ]
@@ -172,6 +178,10 @@ def restaurant_node(state: TravelState) -> TravelState:
                     if missing_fields
                     else "요청한 필수 조건이 확인된 음식점입니다."
                 ),
+                "latitude": float(raw["lat"]),
+                "longitude": float(raw["lon"]),
+                "opens_at": str(raw["opens_at"]),
+                "closes_at": str(raw["closes_at"]),
             }
         )
 
@@ -184,5 +194,6 @@ def restaurant_node(state: TravelState) -> TravelState:
     return {
         "restaurant_search_request": search_request,
         "restaurant_candidates": candidates,
+        "completed_agents": ["restaurant"],
         "messages": [message],
     }

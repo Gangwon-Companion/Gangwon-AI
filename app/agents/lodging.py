@@ -48,6 +48,8 @@ _MOCK_LODGINGS: list[dict[str, object]] = [
         "pet_size_policy": "SMALL",
         "wheelchair_accessible_room": True,
         "nights_available": True,
+        "opens_at": "15:00",
+        "closes_at": "23:00",
     },
     {
         "place_id": "L102",
@@ -57,6 +59,8 @@ _MOCK_LODGINGS: list[dict[str, object]] = [
         "pet_size_policy": None,
         "wheelchair_accessible_room": None,
         "nights_available": True,
+        "opens_at": "15:00",
+        "closes_at": "22:00",
     },
     {
         "place_id": "L103",
@@ -66,6 +70,8 @@ _MOCK_LODGINGS: list[dict[str, object]] = [
         "pet_size_policy": "MEDIUM",
         "wheelchair_accessible_room": True,
         "nights_available": True,
+        "opens_at": "15:00",
+        "closes_at": "23:00",
     },
 ]
 
@@ -131,6 +137,10 @@ def lodging_node(state: TravelState) -> TravelState:
                 "distance_km": _distance_km(region, raw["lat"], raw["lon"]),
                 "status": "INSUFFICIENT_EVIDENCE" if missing_fields else "OK",
                 "missing_fields": missing_fields,
+                "latitude": float(raw["lat"]),
+                "longitude": float(raw["lon"]),
+                "opens_at": str(raw["opens_at"]),
+                "closes_at": str(raw["closes_at"]),
             }
         )
 
@@ -147,5 +157,6 @@ def lodging_node(state: TravelState) -> TravelState:
     return {
         "search_request": search_request,
         "lodging_candidates": candidates,
+        "completed_agents": ["lodging"],
         "messages": messages,
     }
