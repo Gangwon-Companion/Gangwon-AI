@@ -1,0 +1,23 @@
+{
+  "domain": "DESTINATION",
+  "slot": "D1_DESTINATION",
+  "region_codes": ["GANGNEUNG"],
+  "query_text": "바다 근처 조용한 반려견 동반 관광지",
+  "hard_filters": {
+    "pet_allowed": true,
+    "pet_size": "SMALL",
+    "wheelchair_accessible": null
+  },
+  "soft_preferences": {
+    "quiet": 0.9,
+    "ocean_view": 0.8
+  },
+  "geo": {
+    "center": {
+      "lat": 37.75,
+      "lon": 128.9
+    },
+    "radius_km": 15
+  },
+  "limit": 5
+}

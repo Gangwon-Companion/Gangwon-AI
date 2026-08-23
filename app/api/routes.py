@@ -77,13 +77,13 @@ def create_travel_plan(payload: TravelPlanRequest) -> TravelPlanResponse:
             DestinationCandidate(**c) for c in state.get("destination_candidates", [])
         ],
         destination_search_request=(
-            SearchRequest(**vars(state["destination_search_request"]))
+            SearchRequest.model_validate(state["destination_search_request"])
             if state.get("destination_search_request")
             else None
         ),
         lodging_candidates=[LodgingCandidate(**c) for c in state.get("lodging_candidates", [])],
         search_request=(
-            SearchRequest(**vars(state["search_request"]))
+            SearchRequest.model_validate(state["search_request"])
             if state.get("search_request")
             else None
         ),
@@ -91,7 +91,7 @@ def create_travel_plan(payload: TravelPlanRequest) -> TravelPlanResponse:
             RestaurantCandidate(**c) for c in state.get("restaurant_candidates", [])
         ],
         restaurant_search_request=(
-            SearchRequest(**vars(state["restaurant_search_request"]))
+            SearchRequest.model_validate(state["restaurant_search_request"])
             if state.get("restaurant_search_request")
             else None
         ),
