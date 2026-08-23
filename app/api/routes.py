@@ -1,7 +1,9 @@
 from fastapi import APIRouter
 
+from app.agents.validation import validation_node
 from app.agents.itinerary import itinerary_node
 from app.graph import travel_graph
+from app.validators.hard_validator import hard_validator_node
 from app.schemas.travel import (
     AgentStep,
     DestinationCandidate,
@@ -16,9 +18,36 @@ from app.schemas.travel import (
     SearchRequest,
     TravelPlanRequest,
     TravelPlanResponse,
+    HardValidationResult,
+    QualityValidationResult,
+    ValidationRequest,
+    ValidationResponse,
 )
 
 router = APIRouter(prefix="/internal", tags=["travel"])
+
+
+@router.post(
+    "/travel/validate",
+    response_model=ValidationResponse,
+    summary="여행 일정 검증",
+    description="Hard Validator를 먼저 실행하고, 통과한 일정만 Validation Agent로 평가합니다.",
+)
+def validate_travel_plan(payload: ValidationRequest) -> ValidationResponse:
+    state = {
+        "request": payload.request.model_dump(),
+        "preference_profile": payload.preference_profile.model_dump(),
+        "itinerary": [item.model_dump() for item in payload.itinerary],
+    }
+    state.update(hard_validator_node(state))  # type: ignore[arg-type]
+    quality = None
+    if state["hard_validation"]["status"] == "VALID":  # type: ignore[index]
+        state.update(validation_node(state))  # type: ignore[arg-type]
+        quality = QualityValidationResult(**state["quality_validation"])  # type: ignore[arg-type]
+    return ValidationResponse(
+        hard_validation=HardValidationResult(**state["hard_validation"]),  # type: ignore[arg-type]
+        quality_validation=quality,
+    )
 
 
 @router.post(
@@ -93,6 +122,16 @@ def create_travel_plan(payload: TravelPlanRequest) -> TravelPlanResponse:
         restaurant_search_request=(
             SearchRequest.model_validate(state["restaurant_search_request"])
             if state.get("restaurant_search_request")
+            else None
+        ),
+        hard_validation=(
+            HardValidationResult(**state["hard_validation"])
+            if state.get("hard_validation")
+            else None
+        ),
+        quality_validation=(
+            QualityValidationResult(**state["quality_validation"])
+            if state.get("quality_validation")
             else None
         ),
         itinerary_status=state.get("itinerary_status"),
