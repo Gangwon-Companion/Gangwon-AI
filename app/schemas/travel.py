@@ -57,6 +57,13 @@ class DestinationCandidate(BaseModel):
     score: float
     reason: str
     matched_conditions: list[str] = Field(default_factory=list)
+    opens_at: str | None = None
+    closes_at: str | None = None
+    pet_allowed: bool | None = None
+    max_pet_size: str | None = None
+    indoor_pet_allowed: bool | None = None
+    wheelchair_accessible: bool | None = None
+    source_ids: list[str] = Field(default_factory=list)
 
 
 class LodgingCandidate(BaseModel):
@@ -69,6 +76,14 @@ class LodgingCandidate(BaseModel):
     longitude: float | None = None
     opens_at: str | None = None
     closes_at: str | None = None
+    address: str | None = None
+    reason: str = ""
+    matched_conditions: list[str] = Field(default_factory=list)
+    pet_allowed: bool | None = None
+    max_pet_size: str | None = None
+    indoor_pet_allowed: bool | None = None
+    wheelchair_accessible: bool | None = None
+    source_ids: list[str] = Field(default_factory=list)
 
 
 class RestaurantCandidate(BaseModel):
@@ -85,6 +100,12 @@ class RestaurantCandidate(BaseModel):
     longitude: float | None = None
     opens_at: str | None = None
     closes_at: str | None = None
+    address: str | None = None
+    pet_allowed: bool | None = None
+    max_pet_size: str | None = None
+    indoor_pet_allowed: bool | None = None
+    wheelchair_accessible: bool | None = None
+    source_ids: list[str] = Field(default_factory=list)
 
 
 class ScheduledVisit(BaseModel):
@@ -100,6 +121,15 @@ class ScheduledVisit(BaseModel):
     longitude: float | None = None
     source_ids: list[str] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)
+    address: str | None = None
+    opens_at: str | None = None
+    closes_at: str | None = None
+    pet_allowed: bool | None = None
+    max_pet_size: str | None = None
+    indoor_pet_allowed: bool | None = None
+    wheelchair_accessible: bool | None = None
+    recommendation_reason: str = ""
+    matched_conditions: list[str] = Field(default_factory=list)
 
 
 class ValidationAction(BaseModel):
@@ -160,6 +190,9 @@ class ItinerarySlot(BaseModel):
     closes_at: str | None = None
     source_ids: list[str] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)
+    address: str | None = None
+    recommendation_reason: str = ""
+    matched_conditions: list[str] = Field(default_factory=list)
 
 
 class ValidationRequest(BaseModel):
@@ -171,6 +204,55 @@ class ValidationRequest(BaseModel):
 class ValidationResponse(BaseModel):
     hard_validation: HardValidationResult
     quality_validation: QualityValidationResult | None = None
+
+
+class ResponseAccessibility(BaseModel):
+    wheelchair_accessible: bool | None = None
+    pet_allowed: bool | None = None
+    indoor_pet_allowed: bool | None = None
+    max_pet_size: str | None = None
+
+
+class ResponseVisit(BaseModel):
+    slot: str
+    time: str
+    place_id: str
+    name: str
+    category: str
+    address: str | None = None
+    recommendation_reason: str
+    operating_hours: str | None = None
+    accessibility: ResponseAccessibility
+    travel_minutes_from_previous: int = 0
+    unverified_fields: list[str] = Field(default_factory=list)
+    source_ids: list[str] = Field(default_factory=list)
+
+
+class ResponseDay(BaseModel):
+    day: int
+    date: str | None = None
+    summary: str
+    visits: list[ResponseVisit] = Field(default_factory=list)
+
+
+class FinalTravelResponse(BaseModel):
+    response_status: str
+    title: str
+    summary: str
+    answer: str
+    days: list[ResponseDay] = Field(default_factory=list)
+    notices: list[str] = Field(default_factory=list)
+    quality_score: int | None = None
+    source_ids: list[str] = Field(default_factory=list)
+
+
+class ResponsePreviewRequest(BaseModel):
+    request: TravelPlanRequest
+    preference_profile: PreferenceProfile = Field(default_factory=PreferenceProfile)
+    itinerary_status: str = "READY"
+    itinerary: list[ItinerarySlot] = Field(min_length=1)
+    hard_validation: HardValidationResult
+    quality_validation: QualityValidationResult
 
 
 class ItineraryPreviewRequest(BaseModel):

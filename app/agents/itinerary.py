@@ -70,9 +70,18 @@ def _destination_candidates(state: TravelState) -> list[OptimizerCandidate]:
                 score=float(raw.get("score", 0.0)),
                 latitude=raw.get("map_y"),
                 longitude=raw.get("map_x"),
-                source_ids=(f"destination:{place_id}",) if place_id else (),
+                source_ids=tuple(raw.get("source_ids", [])) or ((f"destination:{place_id}",) if place_id else ()),
                 tags=(raw.get("theme_code", ""),),
                 evidence_complete=bool(place_id and raw.get("source_types")),
+                address=raw.get("addr1"),
+                opens_at=raw.get("opens_at"),
+                closes_at=raw.get("closes_at"),
+                pet_allowed=raw.get("pet_allowed"),
+                max_pet_size=raw.get("max_pet_size"),
+                indoor_pet_allowed=raw.get("indoor_pet_allowed"),
+                wheelchair_accessible=raw.get("wheelchair_accessible"),
+                recommendation_reason=raw.get("reason", ""),
+                matched_conditions=tuple(raw.get("matched_conditions", [])),
             )
         )
     return candidates
@@ -92,9 +101,16 @@ def _restaurant_candidates(state: TravelState) -> list[OptimizerCandidate]:
                 longitude=raw.get("longitude"),
                 opens_at=raw.get("opens_at"),
                 closes_at=raw.get("closes_at"),
-                source_ids=(f"restaurant:{place_id}",) if place_id else (),
+                source_ids=tuple(raw.get("source_ids", [])) or ((f"restaurant:{place_id}",) if place_id else ()),
                 tags=tuple(raw.get("cuisine", [])),
                 evidence_complete=raw.get("status") == "OK",
+                address=raw.get("address"),
+                pet_allowed=raw.get("pet_allowed"),
+                max_pet_size=raw.get("max_pet_size"),
+                indoor_pet_allowed=raw.get("indoor_pet_allowed"),
+                wheelchair_accessible=raw.get("wheelchair_accessible"),
+                recommendation_reason=raw.get("reason", ""),
+                matched_conditions=tuple(raw.get("matched_conditions", [])),
             )
         )
     return candidates
@@ -116,9 +132,16 @@ def _lodging_candidates(state: TravelState) -> list[OptimizerCandidate]:
                 longitude=raw.get("longitude"),
                 opens_at=raw.get("opens_at"),
                 closes_at=raw.get("closes_at"),
-                source_ids=(f"lodging:{place_id}",) if place_id else (),
+                source_ids=tuple(raw.get("source_ids", [])) or ((f"lodging:{place_id}",) if place_id else ()),
                 tags=("LODGING",),
                 evidence_complete=raw.get("status") == "OK",
+                address=raw.get("address"),
+                pet_allowed=raw.get("pet_allowed"),
+                max_pet_size=raw.get("max_pet_size"),
+                indoor_pet_allowed=raw.get("indoor_pet_allowed"),
+                wheelchair_accessible=raw.get("wheelchair_accessible"),
+                recommendation_reason=raw.get("reason", ""),
+                matched_conditions=tuple(raw.get("matched_conditions", [])),
             )
         )
     return candidates
@@ -157,6 +180,7 @@ def _serialize_visits(visits: tuple[object, ...]) -> list[ScheduledVisit]:
         data = asdict(visit)  # type: ignore[arg-type]
         data["source_ids"] = list(data["source_ids"])
         data["tags"] = list(data["tags"])
+        data["matched_conditions"] = list(data["matched_conditions"])
         serialized.append(data)  # type: ignore[arg-type]
     return serialized
 

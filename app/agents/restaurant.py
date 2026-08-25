@@ -25,6 +25,14 @@ def restaurant_node(state: TravelState) -> TravelState:
             "reason": "일부 정책 정보는 확인이 필요합니다." if item.missing_fields else "검색 조건에 맞는 음식점입니다.",
             "latitude": item.location.lat if item.location else None,
             "longitude": item.location.lon if item.location else None,
+            "address": item.address or "",
+            "opens_at": next((e.value for e in item.evidence if e.field == "opens_at"), None),
+            "closes_at": next((e.value for e in item.evidence if e.field == "closes_at"), None),
+            "pet_allowed": next((e.value for e in item.evidence if e.field == "pet_allowed"), None),
+            "max_pet_size": next((e.value for e in item.evidence if e.field == "max_pet_size"), None),
+            "indoor_pet_allowed": next((e.value for e in item.evidence if e.field == "indoor_pet_allowed"), None),
+            "wheelchair_accessible": next((e.value for e in item.evidence if e.field == "wheelchair_accessible"), None),
+            "source_ids": [f"restaurant:{item.place_id}"],
         }
         for item in response.results
     ]

@@ -5,14 +5,8 @@ from typing import Annotated, Literal, TypedDict
 
 
 AgentName = Literal[
-    "destination",
-    "restaurant",
-    "lodging",
-    "activity",
-    "itinerary",
-    "validator",
-    "validation",
-    "response",
+    "destination", "restaurant", "lodging", "activity", "itinerary",
+    "validator", "validation", "response",
 ]
 
 
@@ -21,10 +15,8 @@ class TravelRequest(TypedDict, total=False):
     region: str | None
     travel_days: int | None
     nights: int | None
-    # None은 아직 입력받지 못한 상태이며, 반려동물 미동반(False)과 구분한다.
     pet_allowed: bool | None
     pet_size: str | None
-    # None은 미입력, False는 무장애 조건 없음으로 구분한다.
     wheelchair_accessible: bool | None
     indoor_pet: bool | None
     max_price: int | None
@@ -45,10 +37,15 @@ class DestinationCandidate(TypedDict, total=False):
     score: float
     reason: str
     matched_conditions: list[str]
+    opens_at: str | None
+    closes_at: str | None
+    pet_allowed: bool | None
+    max_pet_size: str | None
+    indoor_pet_allowed: bool | None
+    wheelchair_accessible: bool | None
+    source_ids: list[str]
 
 
-# PreferenceExtractor가 만든 파생 데이터로, 원본 요청(request)과 분리해 보관한다.
-# soft는 plan.md 6장 SearchRequest의 softPreferences로 그대로 전달한다.
 class PreferenceProfile(TypedDict, total=False):
     keywords: list[str]
     soft: dict[str, float]
@@ -61,10 +58,18 @@ class LodgingCandidate(TypedDict, total=False):
     distance_km: float | None
     status: Literal["OK", "INSUFFICIENT_EVIDENCE"]
     missing_fields: list[str]
-    latitude: float
-    longitude: float
+    latitude: float | None
+    longitude: float | None
     opens_at: str | None
     closes_at: str | None
+    address: str
+    reason: str
+    matched_conditions: list[str]
+    pet_allowed: bool | None
+    max_pet_size: str | None
+    indoor_pet_allowed: bool | None
+    wheelchair_accessible: bool | None
+    source_ids: list[str]
 
 
 class RestaurantCandidate(TypedDict, total=False):
@@ -77,10 +82,16 @@ class RestaurantCandidate(TypedDict, total=False):
     matched_conditions: list[str]
     missing_fields: list[str]
     reason: str
-    latitude: float
-    longitude: float
+    latitude: float | None
+    longitude: float | None
     opens_at: str | None
     closes_at: str | None
+    address: str
+    pet_allowed: bool | None
+    max_pet_size: str | None
+    indoor_pet_allowed: bool | None
+    wheelchair_accessible: bool | None
+    source_ids: list[str]
 
 
 class ScheduledVisit(TypedDict, total=False):
@@ -96,6 +107,15 @@ class ScheduledVisit(TypedDict, total=False):
     longitude: float | None
     source_ids: list[str]
     tags: list[str]
+    address: str | None
+    opens_at: str | None
+    closes_at: str | None
+    pet_allowed: bool | None
+    max_pet_size: str | None
+    indoor_pet_allowed: bool | None
+    wheelchair_accessible: bool | None
+    recommendation_reason: str
+    matched_conditions: list[str]
 
 
 class RetryAction(TypedDict):
@@ -111,8 +131,8 @@ class ItinerarySlot(TypedDict, total=False):
     category: Literal["DESTINATION", "RESTAURANT", "LODGING", "ACTIVITY"]
     start_at: str
     end_at: str
-    latitude: float
-    longitude: float
+    latitude: float | None
+    longitude: float | None
     travel_minutes_from_previous: int
     pet_allowed: bool | None
     max_pet_size: str | None
@@ -122,6 +142,9 @@ class ItinerarySlot(TypedDict, total=False):
     closes_at: str | None
     source_ids: list[str]
     tags: list[str]
+    address: str | None
+    recommendation_reason: str
+    matched_conditions: list[str]
 
 
 class ValidationAction(TypedDict, total=False):
@@ -158,6 +181,39 @@ class QualityValidationResult(TypedDict):
     next_actions: list[ValidationAction]
 
 
+class ResponseVisit(TypedDict, total=False):
+    slot: str
+    time: str
+    place_id: str
+    name: str
+    category: str
+    address: str | None
+    recommendation_reason: str
+    operating_hours: str | None
+    accessibility: dict[str, object]
+    travel_minutes_from_previous: int
+    unverified_fields: list[str]
+    source_ids: list[str]
+
+
+class ResponseDay(TypedDict):
+    day: int
+    date: str | None
+    summary: str
+    visits: list[ResponseVisit]
+
+
+class FinalTravelResponse(TypedDict):
+    response_status: Literal["READY", "PENDING", "FAILED"]
+    title: str
+    summary: str
+    answer: str
+    days: list[ResponseDay]
+    notices: list[str]
+    quality_score: int | None
+    source_ids: list[str]
+
+
 class TravelState(TypedDict, total=False):
     request: TravelRequest
     preference_profile: PreferenceProfile
@@ -189,3 +245,4 @@ class TravelState(TypedDict, total=False):
     itinerary_alternatives: list[list[ScheduledVisit]]
     missing_slots: list[str]
     retry_actions: list[ValidationAction | RetryAction]
+    final_response: FinalTravelResponse

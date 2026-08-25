@@ -17,6 +17,13 @@ class OptimizerCandidate:
     source_ids: tuple[str, ...] = ()
     tags: tuple[str, ...] = ()
     evidence_complete: bool = True
+    address: str | None = None
+    pet_allowed: bool | None = None
+    max_pet_size: str | None = None
+    indoor_pet_allowed: bool | None = None
+    wheelchair_accessible: bool | None = None
+    recommendation_reason: str = ""
+    matched_conditions: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -42,6 +49,15 @@ class ScheduledVisit:
     longitude: float | None
     source_ids: tuple[str, ...]
     tags: tuple[str, ...]
+    address: str | None
+    opens_at: str | None
+    closes_at: str | None
+    pet_allowed: bool | None
+    max_pet_size: str | None
+    indoor_pet_allowed: bool | None
+    wheelchair_accessible: bool | None
+    recommendation_reason: str
+    matched_conditions: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -155,6 +171,15 @@ def optimize_itinerary(
                     longitude=candidate.longitude,
                     source_ids=candidate.source_ids,
                     tags=candidate.tags,
+                    address=candidate.address,
+                    opens_at=candidate.opens_at,
+                    closes_at=candidate.closes_at,
+                    pet_allowed=candidate.pet_allowed,
+                    max_pet_size=candidate.max_pet_size,
+                    indoor_pet_allowed=candidate.indoor_pet_allowed,
+                    wheelchair_accessible=candidate.wheelchair_accessible,
+                    recommendation_reason=candidate.recommendation_reason,
+                    matched_conditions=candidate.matched_conditions,
                 )
                 expanded.append(
                     _PartialPlan(
