@@ -4,6 +4,7 @@ from collections import defaultdict
 from datetime import datetime
 
 from app.core.state import FinalTravelResponse, ItinerarySlot, ResponseDay, ResponseVisit, TravelState
+from app.agents.response_llm import render_answer_with_llm
 
 
 _POLICY_FIELDS = (
@@ -176,15 +177,25 @@ def build_final_response(state: TravelState) -> FinalTravelResponse:
     title = f"{region} {len(days)}일 여행 일정"
     summary = f"검증을 통과한 {len(itinerary)}개 방문 일정입니다."
     unique_notices = list(dict.fromkeys(notices))
+    source_ids = list(dict.fromkeys(all_sources))
+    fallback_answer = _answer(title, days, unique_notices)
     return {
         "response_status": "READY",
         "title": title,
         "summary": summary,
-        "answer": _answer(title, days, unique_notices),
+        "answer": render_answer_with_llm(
+            title=title,
+            summary=summary,
+            days=days,
+            notices=unique_notices,
+            quality_score=state.get("quality_validation", {}).get("score"),
+            source_ids=source_ids,
+            fallback_answer=fallback_answer,
+        ),
         "days": days,
         "notices": unique_notices,
         "quality_score": state.get("quality_validation", {}).get("score"),
-        "source_ids": list(dict.fromkeys(all_sources)),
+        "source_ids": source_ids,
     }
 
 
