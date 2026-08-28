@@ -298,3 +298,4 @@ class TravelPlanResponse(BaseModel):
     itinerary_alternatives: list[list[ScheduledVisit]] = Field(default_factory=list)
     missing_slots: list[str] = Field(default_factory=list)
     retry_actions: list[RetryAction] = Field(default_factory=list)
+    final_response: FinalTravelResponse | None = None

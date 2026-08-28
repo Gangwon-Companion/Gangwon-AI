@@ -19,7 +19,11 @@ def search_response(domain: PlaceDomain, count: int) -> SearchResponse:
                 location=Location(lat=37.75 + index * 0.01, lon=128.90 + index * 0.01),
                 score=0.9 - index * 0.1,
                 status=SearchStatus.OK,
-                evidence=[{"field": "test", "value": True, "source": "FIXTURE"}],
+                matched_preferences=["바다"],
+                evidence=[
+                    {"field": "opens_at", "value": "00:00", "source": "FIXTURE"},
+                    {"field": "closes_at", "value": "23:59", "source": "FIXTURE"},
+                ],
             )
             for index in range(count)
         ]
@@ -72,6 +76,9 @@ class CandidateCollectorTests(unittest.TestCase):
         self.assertEqual("READY", state["itinerary_status"])
         self.assertEqual("completed", state["status"])
         self.assertEqual(3, len(state["itinerary"]))
+        self.assertEqual("VALID", state["hard_validation"]["status"])
+        self.assertEqual("PASS", state["quality_validation"]["status"])
+        self.assertEqual("READY", state["final_response"]["response_status"])
 
     def test_retry_supervisor_selects_only_requested_agent(self) -> None:
         result = candidate_retry_node(

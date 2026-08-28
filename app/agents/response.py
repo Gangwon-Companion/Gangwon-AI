@@ -19,7 +19,10 @@ def _pending_response(state: TravelState) -> FinalTravelResponse:
     itinerary_status = state.get("itinerary_status")
     hard_status = state.get("hard_validation", {}).get("status")
     quality_status = state.get("quality_validation", {}).get("status")
-    if itinerary_status == "NEEDS_CANDIDATES":
+    failed = state.get("status") == "failed"
+    if failed:
+        summary = "여행 일정을 완성하지 못했습니다. 검색 및 검증 결과를 확인해 주세요."
+    elif itinerary_status == "NEEDS_CANDIDATES":
         summary = "일정에 필요한 장소 후보를 추가로 검색하고 있습니다."
     elif hard_status == "INVALID":
         summary = "필수 조건을 충족하지 못해 일정을 수정하고 있습니다."
@@ -28,7 +31,7 @@ def _pending_response(state: TravelState) -> FinalTravelResponse:
     else:
         summary = "최종 검증이 완료되지 않아 아직 여행 일정을 제공할 수 없습니다."
     return {
-        "response_status": "PENDING",
+        "response_status": "FAILED" if failed else "PENDING",
         "title": "여행 일정 준비 중",
         "summary": summary,
         "answer": summary,

@@ -71,7 +71,11 @@ def _destination_candidates(state: TravelState) -> list[OptimizerCandidate]:
                 latitude=raw.get("map_y"),
                 longitude=raw.get("map_x"),
                 source_ids=tuple(raw.get("source_ids", [])) or ((f"destination:{place_id}",) if place_id else ()),
-                tags=(raw.get("theme_code", ""),),
+                tags=tuple(
+                    dict.fromkeys(
+                        [raw.get("theme_code", ""), *raw.get("matched_conditions", [])]
+                    )
+                ),
                 evidence_complete=bool(place_id and raw.get("source_types")),
                 address=raw.get("addr1"),
                 opens_at=raw.get("opens_at"),
@@ -102,7 +106,11 @@ def _restaurant_candidates(state: TravelState) -> list[OptimizerCandidate]:
                 opens_at=raw.get("opens_at"),
                 closes_at=raw.get("closes_at"),
                 source_ids=tuple(raw.get("source_ids", [])) or ((f"restaurant:{place_id}",) if place_id else ()),
-                tags=tuple(raw.get("cuisine", [])),
+                tags=tuple(
+                    dict.fromkeys(
+                        [*raw.get("cuisine", []), *raw.get("matched_conditions", [])]
+                    )
+                ),
                 evidence_complete=raw.get("status") == "OK",
                 address=raw.get("address"),
                 pet_allowed=raw.get("pet_allowed"),

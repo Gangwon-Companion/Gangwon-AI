@@ -165,4 +165,9 @@ def create_travel_plan(payload: TravelPlanRequest) -> TravelPlanResponse:
         ],
         missing_slots=state.get("missing_slots", []),
         retry_actions=[RetryAction(**item) for item in state.get("retry_actions", [])],
+        final_response=(
+            FinalTravelResponse.model_validate(state["final_response"])
+            if state.get("final_response")
+            else None
+        ),
     )

@@ -11,8 +11,15 @@ from app.agents.input_parser import (
 from app.agents.lodging import lodging_node
 from app.agents.itinerary import itinerary_node
 from app.agents.restaurant import restaurant_node
-from app.agents.supervisor import candidate_retry_node, supervisor_node
+from app.agents.response import response_node
+from app.agents.supervisor import (
+    candidate_retry_node,
+    supervisor_node,
+    validation_retry_node,
+)
+from app.agents.validation import validation_node
 from app.core.state import TravelState
+from app.validators.hard_validator import hard_validator_node
 
 # 그래프에 실제로 등록된 하위 Agent다. 팀에서 Agent를 추가할 때
 # add_node와 함께 여기에도 이름을 넣으면 Supervisor의 계획에 자동으로 반영된다.
@@ -41,20 +48,55 @@ def _route_after_candidate_collector(state: TravelState) -> str:
 
 
 def _route_after_itinerary(state: TravelState) -> str:
-    return END if state.get("itinerary_status") == "READY" else "candidate_retry"
+    return "validator" if state.get("itinerary_status") == "READY" else "candidate_retry"
+
+
+def _route_after_validator(state: TravelState) -> str:
+    return (
+        "validation"
+        if state.get("hard_validation", {}).get("status") == "VALID"
+        else "validation_retry"
+    )
+
+
+def _route_after_validation(state: TravelState) -> str:
+    return (
+        "response"
+        if state.get("quality_validation", {}).get("status") == "PASS"
+        else "validation_retry"
+    )
 
 
 def _dispatch_retry_agents(state: TravelState):
     if state.get("status") == "failed":
-        return END
+        return "response"
     targets = [
         agent
         for agent in state.get("retry_agents", [])
         if agent in IMPLEMENTED_AGENT_NODES
     ]
     if not targets:
-        return END
+        return "response"
     return [Send(agent, state) for agent in targets]
+
+
+def _dispatch_validation_retry(state: TravelState):
+    if state.get("status") == "failed":
+        return "response"
+
+    actions = state.get("retry_actions", [])
+    targets = list(
+        dict.fromkeys(
+            action.get("agent")
+            for action in actions
+            if action.get("agent") in IMPLEMENTED_AGENT_NODES
+        )
+    )
+    if targets:
+        return [Send(agent, state) for agent in targets]
+    if any(action.get("agent") == "itinerary" for action in actions):
+        return "itinerary"
+    return "response"
 
 
 # 후보 검색 Agent를 병렬 실행한 뒤 Candidate Collector에서 합류하고 일정을 구성한다.
@@ -70,6 +112,10 @@ def build_graph():
     builder.add_node("candidate_collector", candidate_collector_node)
     builder.add_node("itinerary", itinerary_node)
     builder.add_node("candidate_retry", candidate_retry_node)
+    builder.add_node("validator", hard_validator_node)
+    builder.add_node("validation", validation_node)
+    builder.add_node("validation_retry", validation_retry_node)
+    builder.add_node("response", response_node)
 
     builder.add_edge(START, "form_binder")
     builder.add_edge("form_binder", "preference_extractor")
@@ -91,10 +137,22 @@ def build_graph():
     builder.add_conditional_edges(
         "itinerary",
         _route_after_itinerary,
-        ["candidate_retry", END],
+        ["validator", "candidate_retry"],
     )
     builder.add_conditional_edges("candidate_retry", _dispatch_retry_agents)
+    builder.add_conditional_edges(
+        "validator",
+        _route_after_validator,
+        ["validation", "validation_retry"],
+    )
+    builder.add_conditional_edges(
+        "validation",
+        _route_after_validation,
+        ["response", "validation_retry"],
+    )
+    builder.add_conditional_edges("validation_retry", _dispatch_validation_retry)
+    builder.add_edge("response", END)
     return builder.compile()
 
 
-travel_graph = build_graph()
+travel_graph = build_graph().with_config({"recursion_limit": 50})
