@@ -1,0 +1,12 @@
+{
+  "runId": "course-e2e-rdb-20260828",
+  "generatedAt": "2026-08-28T05:21:15.959Z",
+  "p50Ms": 144.474591,
+  "p95Ms": 312.80194150000017,
+  "p99Ms": 455.33891831999995,
+  "requests": 1147,
+  "throughputRps": 37.88727731247541,
+  "errorRate": 0,
+  "checkRate": 1,
+  "durationMs": 30274.014956
+}

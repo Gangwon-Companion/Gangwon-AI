@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gangwon Companion RDB vs Elasticsearch 검색 비교</title>
+  <style>
+    :root{--navy:#10243e;--ink:#25364b;--muted:#68778b;--paper:#fff;--bg:#edf2f6;--line:#dce4eb;--rdb:#64748b;--es:#007f78;--blue:#1467a8;--mint:#eaf8f5;--amber:#a65d06;--amber-bg:#fff8e8}
+    *{box-sizing:border-box} html{scroll-behavior:smooth}
+    body{margin:0;background:var(--bg);color:var(--ink);font-family:Pretendard,"Noto Sans KR",system-ui,sans-serif;line-height:1.68}
+    main{max-width:1160px;margin:32px auto;padding:52px;background:var(--paper);border-radius:20px;box-shadow:0 14px 40px #17203312}
+    h1{margin:0;color:var(--navy);font-size:2.35rem;letter-spacing:-.055em;line-height:1.25} h2{margin:58px 0 18px;padding-bottom:11px;border-bottom:2px solid var(--navy);color:var(--navy);font-size:1.55rem} h3{margin:29px 0 10px;color:var(--navy);font-size:1.13rem}
+    p{margin:8px 0 15px}.meta,.caption,footer{color:var(--muted);font-size:.9rem}.lead{margin:28px 0;padding:24px 27px;border-left:5px solid var(--es);border-radius:10px;background:var(--mint);font-size:1.08rem}
+    .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;margin:23px 0}.card{padding:18px;border:1px solid var(--line);border-radius:13px;background:#f8fafc}.label{color:var(--muted);font-size:.84rem}.value{margin-top:4px;color:var(--navy);font-size:1.48rem;font-weight:800}.es-text{color:var(--es)}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}.panel{padding:20px 22px;border:1px solid var(--line);border-radius:13px;background:#fbfcfd}.panel h3{margin-top:0}.rdb-panel{border-top:4px solid var(--rdb)}.es-panel{border-top:4px solid var(--es)}
+    table{width:100%;margin:14px 0 23px;border-collapse:collapse;font-size:.91rem}th,td{padding:10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}th{background:#f5f7f9;color:#44546a}th:first-child,td:first-child{text-align:left}.focus td{background:#edf9f6;font-weight:700}
+    code{padding:2px 6px;border-radius:5px;background:#eff3f6;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.88em}pre{overflow:auto;margin:13px 0;padding:18px;border-radius:12px;background:#122033;color:#e7edf4;font-size:.86rem;line-height:1.55}pre code{padding:0;background:transparent;color:inherit}
+    .flow{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:20px 0}.step{position:relative;padding:16px 13px;border:1px solid var(--line);border-radius:11px;background:#f8fafc;text-align:center;font-size:.88rem}.step strong{display:block;margin-bottom:4px;color:var(--blue)}
+    .bar-row{display:grid;grid-template-columns:190px 1fr 105px;gap:12px;align-items:center;margin:10px 0}.track{height:13px;overflow:hidden;border-radius:99px;background:#e6ebf0}.bar{height:100%;border-radius:99px}.bar.rdb{background:var(--rdb)}.bar.es{background:var(--es)}
+    .note,.warning{margin:18px 0;padding:17px 20px;border-radius:11px}.note{border:1px solid #b9d9ef;background:#eff8ff}.warning{border:1px solid #f0d29c;background:var(--amber-bg);color:#70430a}.pros{margin:8px 0;padding-left:20px}.pros li{margin:7px 0}.tag{display:inline-block;margin-right:5px;padding:2px 8px;border-radius:99px;background:#e9eef3;color:#526274;font-size:.78rem}
+    footer{margin-top:52px;padding-top:18px;border-top:1px solid var(--line)}
+    @media(max-width:820px){main{margin:0;padding:25px;border-radius:0}.cards,.grid2{grid-template-columns:1fr 1fr}.flow{grid-template-columns:1fr}.bar-row{grid-template-columns:120px 1fr 90px}table{display:block;overflow:auto}}
+    @media(max-width:520px){.cards,.grid2{grid-template-columns:1fr}h1{font-size:1.85rem}}
+    @media print{body{background:white}main{margin:0;max-width:none;padding:24px;box-shadow:none}.flow,.cards,.grid2{break-inside:avoid}h2{break-after:avoid}}
+  </style>
+</head>
+<body><main>
+  <header>
+    <span class="tag">실데이터</span><span class="tag">동일 요청 비교</span><span class="tag">2026-08-23</span>
+    <h1>RDB와 Elasticsearch,<br>검색 결과와 성능은 어떻게 달랐나</h1>
+    <p class="meta">Gangwon Companion 검색엔진 비교 보고서 · 여행지 개요(<code>destination_details.overview</code>) 검색 반영</p>
+  </header>
+
+  <div class="lead"><strong>한 줄 결론.</strong> 일반적인 지역·메뉴 검색에서는 현재 규모의 RDB도 충분히 빠르지만, 긴 여행지 개요를 대상으로 한 키워드 검색은 Elasticsearch가 크게 유리했다. 대표 시나리오인 <code>바다 산책</code>의 p95는 RDB 763.519ms, ES 27.944ms로 ES가 약 27.3배 빨랐다. 다만 평균 결과 Jaccard가 0.3542이므로 속도만으로 전환을 결정해서는 안 된다.</div>
+
+  <section>
+    <h2>1. 무엇을 참고하고 어떤 데이터를 사용했나</h2>
+    <div class="grid2">
+      <div class="panel"><h3>근거 자료</h3><ul class="pros"><li><code>performance/results/live-rdb-vs-elasticsearch.json</code>: 최종 원시 측정값</li><li><code>tests/fixtures/search_scenarios.json</code>: 20개 공통 요청</li><li><code>run-live-search-comparison.ps1</code>: 실행·집계 방식</li><li>RDB/ES 검색엔진 Java 구현과 ES 색인 문서 조립 코드</li></ul></div>
+      <div class="panel"><h3>데이터와 동일성</h3><ul class="pros"><li>PostgreSQL <code>public</code> 스키마의 실제 수집 데이터 사용</li><li>같은 RDB aggregate 전체를 새 ES 인덱스로 재색인</li><li>재색인 전후 source/indexed 문서 수 일치 확인 후 alias 교체</li><li>두 엔진에 같은 HTTP 요청과 같은 결과 제한을 적용</li></ul></div>
+    </div>
+    <p class="caption">합성 데이터 1,000/5,000건 벤치마크도 별도 문서에 있지만, 이 보고서의 핵심 비교 수치는 실제 수집 데이터로 수행한 최신 live 결과만 사용했다.</p>
+  </section>
+
+  <section>
+    <h2>2. 측정은 어떻게 진행했나</h2>
+    <div class="flow"><div class="step"><strong>① RDB 기동</strong>Spring 검색엔진을 RDB로 설정</div><div class="step"><strong>② 동일 데이터 색인</strong>RDB aggregate를 ES로 재색인</div><div class="step"><strong>③ 공통 요청 실행</strong>20개 시나리오를 엔진별 실행</div><div class="step"><strong>④ 시간 측정</strong>5회 warm-up 뒤 30회 측정</div><div class="step"><strong>⑤ 결과 비교</strong>p50·p95·p99, 처리량, ID 겹침 집계</div></div>
+    <div class="cards"><div class="card"><div class="label">검색 시나리오</div><div class="value">20개</div></div><div class="card"><div class="label">엔진별 요청</div><div class="value">600회</div></div><div class="card"><div class="label">사전 warm-up</div><div class="value">5회/조건</div></div><div class="card"><div class="label">측정 오류율</div><div class="value es-text">0%</div></div></div>
+    <p>측정 구간은 <code>POST /internal/search/places</code> 요청부터 응답까지다. 자연어를 조건으로 바꾸는 AI/LangGraph 처리, 브라우저 렌더링, 실제 외부망 왕복은 포함하지 않았다. 요청은 순차 실행이므로 이 결과는 고동시성 부하시험이 아니다.</p>
+  </section>
+
+  <section>
+    <h2>3. 두 검색 방식의 차이</h2>
+    <div class="grid2">
+      <article class="panel rdb-panel"><h3>PostgreSQL RDB 검색</h3><p>JPA Specification으로 조건을 동적으로 만들고, 각 검색어를 대상 컬럼의 <code>lower(field) LIKE '%term%'</code>와 비교한다. 여행지 개요는 <code>destination_details</code>에 대한 상관 <code>EXISTS</code> 서브쿼리로 확인한다.</p><p><strong>검색 대상</strong><br>여행지: 이름·주소·개요 / 음식점: 이름·메뉴·주소 / 숙소: 이름·설명·주소</p><ul class="pros"><li><strong>장점:</strong> 별도 검색 인프라 없이 원본 데이터가 즉시 반영되고 트랜잭션 일관성이 단순하다.</li><li><strong>장점:</strong> 지역·정형 조건과 현재 소규모 데이터에서는 응답이 빠르다.</li><li><strong>단점:</strong> 선행 와일드카드와 긴 텍스트의 상관 서브쿼리는 일반 B-tree를 활용하기 어렵다.</li><li><strong>단점:</strong> 형태소, 동의어, 필드 가중치와 관련도 튜닝이 제한적이다.</li></ul></article>
+      <article class="panel es-panel"><h3>Elasticsearch BM25 검색</h3><p>RDB 데이터를 문서로 펼쳐 <code>searchText</code>에 이름·주소·테마·개요 등을 합친 뒤 역색인한다. <code>multi_match/cross_fields</code>로 검색하며 이름 정확 일치와 구문 일치에 추가 가중치를 준다.</p><p><strong>검색 규칙</strong><br><code>name^5</code>, <code>searchText^2</code>, 주소 검색 / 처음에는 AND / 0건이면 OR + 최소 70% 토큰 일치</p><ul class="pros"><li><strong>장점:</strong> 긴 전문 검색, BM25 순위화, 한국어 분석과 가중치 확장에 적합하다.</li><li><strong>장점:</strong> 검색량과 문서 수 증가에 수평 확장이 쉽다.</li><li><strong>단점:</strong> 재색인·alias·동기화 지연·장애 복구 등 운영 요소가 늘어난다.</li><li><strong>단점:</strong> 색인 설계와 분석기 설정에 따라 결과 관련도가 크게 달라진다.</li></ul></article>
+    </div>
+    <div class="note"><strong>공통 동작:</strong> 지역·도메인·거리·hard filter를 적용하고, 최초 검색이 0건이면 검색어 토큰의 70% 이상이 맞는 완화 검색을 한 번 수행한다. 최종 후보는 점수 내림차순, 동일 점수는 <code>placeId</code> 오름차순으로 정렬한다.</div>
+  </section>
+
+  <section>
+    <h2>4. 측정 시간 결과</h2>
+    <div class="cards"><div class="card"><div class="label">RDB 평균 p95</div><div class="value">56.230ms</div></div><div class="card"><div class="label">ES 평균 p95</div><div class="value es-text">15.552ms</div></div><div class="card"><div class="label">RDB 중앙 p95</div><div class="value">14.678ms</div></div><div class="card"><div class="label">ES 중앙 p95</div><div class="value es-text">12.803ms</div></div></div>
+    <p class="caption">평균은 여행지 개요 검색의 큰 지연값에 영향을 받는다. 중앙값을 함께 봐야 전형적인 시나리오의 차이를 이해할 수 있다.</p>
+    <h3>대표 시나리오 p95</h3>
+    <div class="bar-row"><span>여행지 키워드</span><div><div class="track"><div class="bar rdb" style="width:100%"></div></div><div class="track" style="margin-top:5px"><div class="bar es" style="width:3.66%"></div></div></div><strong>763.5 / 27.9</strong></div>
+    <div class="bar-row"><span>여행지 지역</span><div><div class="track"><div class="bar rdb" style="width:79.8%"></div></div><div class="track" style="margin-top:5px"><div class="bar es" style="width:64.8%"></div></div></div><strong>31.8 / 25.8</strong></div>
+    <div class="bar-row"><span>여행지 Geo</span><div><div class="track"><div class="bar rdb" style="width:52.1%"></div></div><div class="track" style="margin-top:5px"><div class="bar es" style="width:49.7%"></div></div></div><strong>20.7 / 19.7</strong></div>
+    <div class="bar-row"><span>음식점 메뉴</span><div><div class="track"><div class="bar rdb" style="width:19.8%"></div></div><div class="track" style="margin-top:5px"><div class="bar es" style="width:30.8%"></div></div></div><strong>7.9 / 12.2</strong></div>
+    <div class="bar-row"><span>숙소 설명</span><div><div class="track"><div class="bar rdb" style="width:28.4%"></div></div><div class="track" style="margin-top:5px"><div class="bar es" style="width:41.9%"></div></div></div><strong>11.3 / 16.6</strong></div>
+    <p class="caption">각 행의 숫자는 RDB / Elasticsearch(ms). 막대는 첫 행을 제외하고 보기 쉽도록 40ms를 기준으로 표시했다.</p>
+    <table><thead><tr><th>시나리오</th><th>RDB p95</th><th>ES p95</th><th>RDB 결과</th><th>ES 결과</th><th>Jaccard</th></tr></thead><tbody>
+      <tr class="focus"><td>여행지 키워드 · 바다 산책</td><td>763.519</td><td>27.944</td><td>10</td><td>10</td><td>0.5385</td></tr>
+      <tr><td>여행지 지역만</td><td>31.799</td><td>25.775</td><td>5</td><td>5</td><td>0.2500</td></tr>
+      <tr><td>여행지 반경 10km</td><td>20.708</td><td>19.734</td><td>10</td><td>10</td><td>1.0000</td></tr>
+      <tr><td>여행지 복수 지역</td><td>27.530</td><td>23.806</td><td>20</td><td>20</td><td>1.0000</td></tr>
+      <tr><td>음식점 메뉴 · 초당 순두부</td><td>7.869</td><td>12.248</td><td>10</td><td>10</td><td>0.3333</td></tr>
+      <tr><td>숙소 설명 · 오션뷰 펜션</td><td>11.288</td><td>16.635</td><td>10</td><td>7</td><td>0.1333</td></tr>
+      <tr><td>숙소 Geo + 바다 전망</td><td>6.091</td><td>11.104</td><td>1</td><td>1</td><td>1.0000</td></tr>
+      <tr><td>여행지 최대 100건</td><td>60.056</td><td>39.634</td><td>100</td><td>100</td><td>0.2739</td></tr>
+    </tbody></table>
+  </section>
+
+  <section>
+    <h2>5. 검색 예시 하나: “강릉에서 바다 산책”</h2>
+    <p>AI 입력 파서가 자연어에서 장소 유형, 지역, 검색어를 추출했다고 가정한다. 검색엔진에 전달된 실제 비교 시나리오는 다음과 같다.</p>
+    <pre><code>{
+  "domain": "DESTINATION",
+  "slot": "D1_DESTINATION",
+  "region_codes": ["GANGNEUNG"],
+  "query_text": "바다 산책",
+  "limit": 10
+}</code></pre>
+    <div class="grid2">
+      <div class="panel rdb-panel"><h3>RDB가 검색한 과정</h3><ol class="pros"><li>강릉의 TourAPI 시군구 코드로 후보를 제한한다.</li><li><code>바다</code>, <code>산책</code>을 공백 기준으로 나눈다.</li><li>각 단어가 여행지 이름·주소 또는 상세 개요에 포함되는지 <code>LIKE</code>와 상관 <code>EXISTS</code>로 확인한다.</li><li>두 단어를 모두 만족한 후보를 점수와 ID로 정렬해 10건을 반환한다.</li></ol><p><strong>결과:</strong> p95 763.519ms · 10건</p></div>
+      <div class="panel es-panel"><h3>ES가 검색한 과정</h3><ol class="pros"><li><code>domain=DESTINATION</code>, <code>regionCode=GANGNEUNG</code>을 filter context로 제한한다.</li><li>미리 역색인한 이름·주소·테마·개요에서 두 토큰을 AND로 검색한다.</li><li>이름 정확 일치·구문 일치와 BM25 관련도 점수를 반영한다.</li><li>점수와 ID로 정렬해 10건을 반환한다.</li></ol><p><strong>결과:</strong> p95 27.944ms · 10건</p></div>
+    </div>
+    <p>두 엔진에서 공통으로 나온 결과는 7건이고, 합집합 대비 교집합인 Jaccard는 0.5385였다. 같은 순위에 같은 장소가 놓인 위치는 3개뿐이었다. 따라서 ES가 약 27.3배 빨랐다는 사실과 별개로, 어느 결과가 사용자 의도에 더 맞는지는 사람이 후보를 판정해야 한다.</p>
+    <h3>실제 검색 결과</h3>
+    <table>
+      <thead><tr><th>순위</th><th>RDB 검색 결과</th><th>Elasticsearch 검색 결과</th><th>같은 위치</th></tr></thead>
+      <tbody>
+        <tr class="focus"><td>1</td><td>[강릉 바우길 5구간] 바다 호숫길 <code>1016</code></td><td>[강릉 바우길 5구간] 바다 호숫길 <code>1016</code></td><td>일치</td></tr>
+        <tr><td>2</td><td>강릉 한울타리마을 <code>17</code></td><td>순포해변 <code>487</code></td><td>불일치</td></tr>
+        <tr><td>3</td><td>단경골 휴양지 <code>190</code></td><td>사천진항 <code>377</code></td><td>불일치</td></tr>
+        <tr class="focus"><td>4</td><td>방파제회센터 <code>321</code></td><td>방파제회센터 <code>321</code></td><td>일치</td></tr>
+        <tr><td>5</td><td>사기막저수지 <code>373</code></td><td>파스텔상점 <code>875</code></td><td>불일치</td></tr>
+        <tr><td>6</td><td>사천진항 <code>377</code></td><td>경포호수광장 <code>71</code></td><td>불일치</td></tr>
+        <tr><td>7</td><td>강릉항여객터미널 <code>38</code></td><td>호린파크(경포대허브농장) <code>941</code></td><td>불일치</td></tr>
+        <tr class="focus"><td>8</td><td>소돌해수욕장 <code>444</code></td><td>소돌해수욕장 <code>444</code></td><td>일치</td></tr>
+        <tr><td>9</td><td>순포해변 <code>487</code></td><td>강릉 한울타리마을 <code>17</code></td><td>불일치</td></tr>
+        <tr><td>10</td><td>경포호수광장 <code>71</code></td><td>정동진 레일바이크 <code>721</code></td><td>불일치</td></tr>
+      </tbody>
+    </table>
+    <div class="grid2">
+      <div class="panel"><h3>공통 결과 7건</h3><p>바다 호숫길, 강릉 한울타리마을, 방파제회센터, 사천진항, 소돌해수욕장, 순포해변, 경포호수광장</p></div>
+      <div class="panel"><h3>엔진별 고유 결과</h3><p><strong>RDB만:</strong> 단경골 휴양지, 사기막저수지, 강릉항여객터미널<br><strong>ES만:</strong> 파스텔상점, 호린파크(경포대허브농장), 정동진 레일바이크</p></div>
+    </div>
+    <p class="caption">순위와 ID는 원본 측정 JSON의 <code>result_ids</code>, 장소명은 동일한 실데이터 PostgreSQL의 <code>destinations</code> 테이블에서 조회했다. 재현성을 높이려면 다음 측정부터 <code>place_id</code>와 <code>name</code>을 결과 파일에 함께 저장하는 것이 좋다.</p>
+  </section>
+
+  <section>
+    <h2>6. 결과를 읽을 때 주의할 점</h2>
+    <div class="warning"><strong>검색 계약 불일치:</strong> 반려동물·휠체어 값이 <code>NULL</code>일 때 RDB는 후보를 <code>INSUFFICIENT_EVIDENCE</code> 상태로 유지하지만 ES는 <code>true</code> 문서만 통과시킨다. 그래서 일부 정책 시나리오는 RDB 5건, ES 0건이다. 이는 엔진 속도나 품질 우열이 아니라 구현 규칙이 서로 다른 문제다.</div>
+    <ul class="pros"><li>평균 Jaccard 0.3542, 완전한 순서 일치 5/20이므로 현재 결과는 성능 비교와 계약 차이 발견에 의미가 있다.</li><li>결과 관련성의 승자를 정하려면 검색어별 사람 판정(예: 0~3점)과 NDCG@10, Recall@10 측정이 필요하다.</li><li>이번 실데이터 측정은 시나리오당 30회 순차 요청이다. 운영 결론 전 동시성 1·10·50, 300회, 3회 반복이 필요하다.</li><li>ES 초기 색인 시간은 검색 응답시간에 포함되지 않는다. PostgreSQL을 원본으로 유지한다면 CDC·재색인·alias 롤백 전략도 비용에 포함해야 한다.</li></ul>
+  </section>
+
+  <section>
+    <h2>7. 결론</h2>
+    <p><strong>지역·정형 필터 중심이고 데이터가 현재 수준이라면 RDB는 단순하고 충분히 빠른 선택</strong>이다. 반면 <strong>여행지 개요처럼 긴 텍스트를 탐색하고 향후 형태소·동의어·필드 가중치·고동시성을 확장하려면 Elasticsearch가 더 적합</strong>하다.</p>
+    <p>다음 의사결정 순서는 ① 두 엔진의 <code>NULL</code> 정책 계약 통일, ② 동일 데이터 재색인, ③ 사람 판정 검색 정답 세트 평가, ④ 운영 예상 동시성 부하 측정이다. 이 네 조건을 맞춘 뒤 속도와 관련도를 함께 보고 운영 엔진을 확정하는 것이 안전하다.</p>
+  </section>
+
+  <footer>출처: <code>performance/results/live-rdb-vs-elasticsearch.json</code>, <code>performance/reports/2026-08-23-overview-search-rdb-vs-elasticsearch.md</code>, 검색엔진 구현 코드. 모든 수치는 2026-08-23 저장된 측정 결과 기준이며 단위는 ms다.</footer>
+</main></body></html>

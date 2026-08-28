@@ -1,0 +1,16 @@
+{
+  "version": "rdb-v1",
+  "dataset": "synthetic-v1",
+  "judgments": [
+    {"scenario_id":"restaurant-region","relevant_rule":"domain=RESTAURANT and region=강릉"},
+    {"scenario_id":"restaurant-keyword","relevant_rule":"name or menu_type contains 한식"},
+    {"scenario_id":"restaurant-multi-filter","relevant_rule":"name or menu_type contains 카페; policy fields are intentionally unknown"},
+    {"scenario_id":"restaurant-geo","relevant_rule":"within 2km of 37.75,128.90"},
+    {"scenario_id":"lodging-keyword","relevant_rule":"name or description contains 바다"},
+    {"scenario_id":"lodging-sparse","relevant_rule":"no relevant document"}
+  ],
+  "limitations": [
+    "Synthetic labels validate deterministic filtering, not human-perceived semantic relevance.",
+    "A production-like Korean query set must be human-labeled before the final engine decision."
+  ]
+}

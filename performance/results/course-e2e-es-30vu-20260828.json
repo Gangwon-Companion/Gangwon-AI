@@ -1,0 +1,12 @@
+{
+  "runId": "course-e2e-es-30vu-20260828",
+  "generatedAt": "2026-08-28T06:07:30.912Z",
+  "p50Ms": 533.1857775000001,
+  "p95Ms": 893.1439498499998,
+  "p99Ms": 1299.7701113300002,
+  "requests": 1384,
+  "throughputRps": 45.48693754863248,
+  "errorRate": 0,
+  "checkRate": 1,
+  "durationMs": 30426.317413
+}

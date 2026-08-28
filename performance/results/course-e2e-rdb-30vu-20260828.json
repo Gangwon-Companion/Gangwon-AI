@@ -1,0 +1,12 @@
+{
+  "runId": "course-e2e-rdb-30vu-20260828",
+  "generatedAt": "2026-08-28T06:06:43.460Z",
+  "p50Ms": 572.119577,
+  "p95Ms": 919.6082693,
+  "p99Ms": 1589.0360731399999,
+  "requests": 1303,
+  "throughputRps": 42.575490761551364,
+  "errorRate": 0,
+  "checkRate": 1,
+  "durationMs": 30604.462255
+}
