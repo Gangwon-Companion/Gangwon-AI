@@ -70,7 +70,10 @@ class OpenAIResponsesClient:
 
 
 def llm_enabled() -> bool:
-    return os.getenv("GANGWON_RESPONSE_LLM_ENABLED", "").lower() in {"1", "true", "yes", "on"}
+    configured = os.getenv("GANGWON_RESPONSE_LLM_ENABLED")
+    if configured is not None:
+        return configured.lower() in {"1", "true", "yes", "on"}
+    return bool(os.getenv("OPENAI_API_KEY"))
 
 
 def render_answer_with_llm(
@@ -87,7 +90,7 @@ def render_answer_with_llm(
     if not llm_enabled():
         return fallback_answer
 
-    model = os.getenv("GANGWON_RESPONSE_LLM_MODEL", "gpt-5.4-nano")
+    model = os.getenv("GANGWON_RESPONSE_LLM_MODEL", "gpt-4.1")
     llm_client = client or OpenAIResponsesClient()
     try:
         answer = llm_client.create_answer(
@@ -117,9 +120,9 @@ def _instructions() -> str:
     return (
         "너는 검증 완료된 강원 여행 일정의 최종 답변 문장만 작성한다. "
         "입력 JSON에 있는 장소, 시간, 주소, 운영시간, 접근성, 반려동물 정책, "
-        "미확인 정보, source_ids만 사용한다. 장소를 추가하거나 삭제하지 말고, "
+        "미확인 정보만 사용한다. 장소를 추가하거나 삭제하지 말고, "
         "일정을 바꾸지 말고, null 또는 미확인 값을 가능하다고 추정하지 마라. "
-        "한국어로 자연스럽고 간결하게 작성하되, 방문 전 확인 사항과 근거 ID를 보존하라."
+        "한국어로 자연스럽고 읽기 쉽게 작성하되, 내부 출처 ID나 근거 ID는 절대 출력하지 마라."
     )
 
 
@@ -138,7 +141,6 @@ def _input_text(
         "days": days,
         "notices": notices,
         "quality_score": quality_score,
-        "source_ids": source_ids,
     }
     return json.dumps(payload, ensure_ascii=False, indent=2)
 
