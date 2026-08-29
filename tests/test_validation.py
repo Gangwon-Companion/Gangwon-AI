@@ -75,6 +75,20 @@ class HardValidatorTests(unittest.TestCase):
             codes,
         )
 
+    def test_allows_same_lodging_for_consecutive_nights(self) -> None:
+        first = slot(
+            "D1_LODGING", "L1", "2026-08-23T20:00:00+09:00",
+            "2026-08-23T21:00:00+09:00", category="LODGING"
+        )
+        second = slot(
+            "D2_LODGING", "L1", "2026-08-24T20:00:00+09:00",
+            "2026-08-24T21:00:00+09:00", category="LODGING"
+        )
+
+        result = validate_itinerary({}, [first, second])  # type: ignore[arg-type]
+
+        self.assertEqual("VALID", result["status"])
+
 
 class QualityValidationTests(unittest.TestCase):
     def test_quality_issues_request_revision(self) -> None:

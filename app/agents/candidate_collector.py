@@ -22,7 +22,6 @@ def candidate_collector_node(state: TravelState) -> TravelState:
         "destination": len(state.get("destination_candidates", [])),
         "restaurant": len(state.get("restaurant_candidates", [])),
         "lodging": len(state.get("lodging_candidates", [])),
-        "activity": len(state.get("activity_candidates", [])),  # type: ignore[typeddict-item]
     }
     summary = ", ".join(
         f"{agent} {candidate_counts.get(agent, 0)}개" for agent in sorted(selected)

@@ -30,7 +30,6 @@ _CATEGORY_AGENT: dict[str, AgentName] = {
     "DESTINATION": "destination",
     "RESTAURANT": "restaurant",
     "LODGING": "lodging",
-    "ACTIVITY": "activity",
 }
 
 
@@ -180,22 +179,29 @@ def validate_itinerary(
     request: TravelRequest, itinerary: list[ItinerarySlot]
 ) -> HardValidationResult:
     violations: list[HardViolation] = []
-    seen_places: dict[str, str] = {}
+    seen_places: dict[str, ItinerarySlot] = {}
     previous: ItinerarySlot | None = None
 
     for item in itinerary:
         violations.extend(_validate_item(request, item))
         place_id = item.get("place_id")
-        if place_id and place_id in seen_places:
+        first_visit = seen_places.get(place_id) if place_id else None
+        repeated_lodging = bool(
+            first_visit
+            and first_visit.get("category") == "LODGING"
+            and item.get("category") == "LODGING"
+        )
+        if place_id and first_visit and not repeated_lodging:
+            first_slot = first_visit.get("slot", "UNKNOWN")
             duplicate = _violation(
                 HardFailureCode.DUPLICATE_PLACE,
                 item,
-                f"{seen_places[place_id]} 슬롯과 동일한 장소가 중복되었습니다.",
+                f"{first_slot} 슬롯과 동일한 장소가 중복되었습니다.",
             )
-            duplicate["slots"] = [seen_places[place_id], item.get("slot", "UNKNOWN")]
+            duplicate["slots"] = [first_slot, item.get("slot", "UNKNOWN")]
             violations.append(duplicate)
         elif place_id:
-            seen_places[place_id] = item.get("slot", "UNKNOWN")
+            seen_places[place_id] = item
 
         if previous:
             previous_end = _parse_datetime(previous.get("end_at"))

@@ -5,4 +5,8 @@ _REGION_CODES = {"춘천": RegionCode.CHUNCHEON, "원주": RegionCode.WONJU, "�
 def region_code_for(region: str | None) -> RegionCode | None:
     if not region:
         return None
-    return _REGION_CODES.get(region.strip().removesuffix("시").removesuffix("군"))
+    normalized = region.strip().removesuffix("시").removesuffix("군")
+    try:
+        return RegionCode(normalized.upper())
+    except ValueError:
+        return _REGION_CODES.get(normalized)

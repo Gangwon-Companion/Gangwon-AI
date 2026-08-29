@@ -43,7 +43,6 @@ class AgentStep(BaseModel):
 class PreferenceProfile(BaseModel):
     keywords: list[str] = Field(default_factory=list)
     soft: dict[str, float] = Field(default_factory=dict)
-    activity_requested: bool = False
 
 
 class DestinationCandidate(BaseModel):

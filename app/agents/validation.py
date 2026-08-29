@@ -28,7 +28,6 @@ _CATEGORY_AGENT: dict[str, AgentName] = {
     "DESTINATION": "destination",
     "RESTAURANT": "restaurant",
     "LODGING": "lodging",
-    "ACTIVITY": "activity",
 }
 
 
@@ -140,10 +139,12 @@ def _evaluate_preferences(state: TravelState) -> list[QualityIssue]:
     if not preferences:
         return []
     itinerary = state.get("itinerary", [])
-    matched = preferences & {
+    normalized = set(state.get("preference_profile", {}).get("soft", {}))
+    expected = preferences | normalized
+    matched = expected & {
         tag for item in itinerary for tag in item.get("tags", [])
     }
-    ratio = len(matched) / len(preferences)
+    ratio = len(matched) / len(expected)
     if ratio >= 0.5:
         return []
     return [
@@ -160,8 +161,13 @@ def _evaluate_trip_purpose(state: TravelState) -> list[QualityIssue]:
     if not preferences:
         return []
     primary_purpose = preferences[0]
+    normalized_purposes = set(state.get("preference_profile", {}).get("soft", {}))
     itinerary = state.get("itinerary", [])
-    if any(primary_purpose in item.get("tags", []) for item in itinerary):
+    if any(
+        primary_purpose in item.get("tags", [])
+        or bool(normalized_purposes & set(item.get("tags", [])))
+        for item in itinerary
+    ):
         return []
     return [
         _issue(

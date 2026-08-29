@@ -51,7 +51,7 @@ Hard Validator
                 └─ PASS → Response Agent → END
 ```
 
-검색 Agent는 `GANGWON_BE_BASE_URL`의 Spring Boot `POST /internal/search/places`를 호출합니다. 기본 주소는 `http://localhost:8080`입니다. Activity Agent는 아직 구현되지 않았습니다.
+검색 Agent는 `GANGWON_BE_BASE_URL`의 Spring Boot `POST /internal/search/places`를 호출합니다. 기본 주소는 `http://localhost:8080`입니다.
 
 ## 기술 스택
 
@@ -201,7 +201,10 @@ $env:GANGWON_BE_BASE_URL = "http://localhost:8080"
 .\.venv\Scripts\python.exe -m unittest tests.test_be_e2e -v
 ```
 
-2026-08-28 로컬 점검에서는 BE와 Elasticsearch 연결 및 응답 계약은 통과했지만 `gangwon-places` 색인의 문서 수가 0건이었다. 실제 데이터 기반 `READY` 성공 경로는 색인 적재 후 다시 검증해야 합니다.
+live E2E는 HTTP 200이나 단순 종단 도달만으로 통과하지 않습니다. 실제 데이터로
+`completed`, `READY`, `VALID`, `PASS`, 빈 `missing_slots`와 3개 이상의 일정 항목을
+모두 검증합니다. 후보 부족으로 종료되는 의도된 실패 경로는 외부 서비스가 필요 없는
+그래프 테스트에서 별도로 검증합니다.
 
 ## 디렉터리 구조
 

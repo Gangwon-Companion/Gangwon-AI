@@ -32,11 +32,7 @@ _PREFERENCE_KEYWORDS: dict[str, tuple[str, float]] = {
     "맛집": ("food", 0.8),
     "자연": ("nature", 0.8),
     "야경": ("nightView", 0.7),
-    "체험": ("activity", 0.8),
-    "레저": ("activity", 0.8),
 }
-
-_ACTIVITY_KEYWORDS = ("액티비티", "체험", "레저", "activity", "experience")
 
 _REQUIRED_FIELD_QUESTIONS = {
     "region": "어느 지역으로 여행하시나요?",
@@ -152,17 +148,11 @@ def preference_extractor_node(state: TravelState) -> TravelState:
         name, weight = mapped
         soft[name] = max(soft.get(name, 0.0), weight)
 
-    # Activity 의도를 여기서 한 번만 판정해 Supervisor가 원문을 다시 읽지 않게 한다.
-    activity_requested = any(keyword in message for keyword in _ACTIVITY_KEYWORDS) or any(
-        keyword in keywords for keyword in ("액티비티", "체험", "레저")
-    )
-
     return {
         "request": request,
         "preference_profile": {
             "keywords": keywords,
             "soft": soft,
-            "activity_requested": activity_requested,
         },
     }
 

@@ -80,7 +80,6 @@ def preview_payload() -> dict[str, object]:
         "preference_profile": {
             "keywords": ["바다", "한식"],
             "soft": {},
-            "activity_requested": False,
         },
         "itinerary_status": state["itinerary_status"],
         "itinerary": state["itinerary"],

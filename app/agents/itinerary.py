@@ -14,7 +14,6 @@ _SLOT_RULES: dict[str, tuple[str, str, int]] = {
     "BREAKFAST": ("RESTAURANT", "08:00", 60),
     "DESTINATION": ("DESTINATION", "10:00", 120),
     "LUNCH": ("RESTAURANT", "12:30", 60),
-    "ACTIVITY": ("ACTIVITY", "14:30", 120),
     "DINNER": ("RESTAURANT", "18:00", 90),
     "LODGING": ("LODGING", "20:00", 60),
 }
@@ -23,7 +22,6 @@ _CATEGORY_AGENT: dict[str, AgentName] = {
     "DESTINATION": "destination",
     "RESTAURANT": "restaurant",
     "LODGING": "lodging",
-    "ACTIVITY": "activity",
 }
 
 
@@ -162,7 +160,6 @@ def collect_candidates_by_slot(
         "DESTINATION": _destination_candidates(state),
         "RESTAURANT": _restaurant_candidates(state),
         "LODGING": _lodging_candidates(state),
-        "ACTIVITY": [],
     }
     return {spec.slot: list(by_category[spec.category]) for spec in specs}
 
