@@ -56,6 +56,35 @@ class SearchIntegrationTest(unittest.TestCase):
 
         self.assertEqual(restaurant_request(self.state).region_codes, [])
 
+    def test_pet_friendly_east_coast_restaurant_search_expands_regions(self) -> None:
+        self.state["request"]["region"] = "속초"
+
+        request = restaurant_request(self.state)
+
+        self.assertEqual(
+            request.region_codes,
+            [
+                RegionCode.GOSEONG,
+                RegionCode.SOKCHO,
+                RegionCode.YANGYANG,
+                RegionCode.GANGNEUNG,
+                RegionCode.DONGHAE,
+                RegionCode.SAMCHEOK,
+            ],
+        )
+
+    def test_multi_day_east_coast_restaurant_search_expands_regions(self) -> None:
+        self.state["request"].update({
+            "region": "속초", "travel_days": 2, "pet_allowed": False, "pet_size": None,
+        })
+
+        request = restaurant_request(self.state)
+
+        self.assertEqual(request.region_codes, [
+            RegionCode.GOSEONG, RegionCode.SOKCHO, RegionCode.YANGYANG,
+            RegionCode.GANGNEUNG, RegionCode.DONGHAE, RegionCode.SAMCHEOK,
+        ])
+
     @patch("app.agents.restaurant.search_client")
     def test_restaurant_agent_maps_common_response(self, client: Mock) -> None:
         client.search.return_value = response_fixture()
