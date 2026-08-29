@@ -69,7 +69,7 @@ class OptimizedPlan:
 @dataclass
 class _PartialPlan:
     visits: list[ScheduledVisit] = field(default_factory=list)
-    used_place_ids: set[str] = field(default_factory=set)
+    used_place_days: set[tuple[str, int]] = field(default_factory=set)
     score: float = 0.0
 
 
@@ -123,7 +123,9 @@ def _candidate_score(
     preferences: set[str],
 ) -> float:
     preference_matches = len(preferences & set(candidate.tags))
-    evidence_penalty = 15.0 if not candidate.evidence_complete else 0.0
+    # 검증 근거가 불완전한 고득점 후보가 완전한 후보를 밀어내면 이후 Hard Validator에서
+    # 전체 일정이 폐기된다. 완전한 후보가 존재하는 동안은 선택되지 않도록 큰 패널티를 둔다.
+    evidence_penalty = 10_000.0 if not candidate.evidence_complete else 0.0
     return candidate.score * 100 + preference_matches * 5 - travel_minutes * 2.0 - evidence_penalty
 
 
@@ -152,7 +154,7 @@ def optimize_itinerary(
             for candidate in candidates_by_slot[spec.slot]:
                 # 연박은 같은 숙소를 유지하는 편이 자연스럽다. 숙소 외 장소만 중복을 막는다.
                 if (
-                    candidate.place_id in partial.used_place_ids
+                    (candidate.place_id, spec.day) in partial.used_place_days
                     and candidate.category != "LODGING"
                 ):
                     continue
@@ -187,7 +189,10 @@ def optimize_itinerary(
                 expanded.append(
                     _PartialPlan(
                         visits=[*partial.visits, visit],
-                        used_place_ids={*partial.used_place_ids, candidate.place_id},
+                        used_place_days={
+                            *partial.used_place_days,
+                            (candidate.place_id, spec.day),
+                        },
                         score=partial.score
                         + _candidate_score(candidate, travel_minutes, preference_set),
                     )
