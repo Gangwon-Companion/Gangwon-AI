@@ -33,7 +33,7 @@ def build_search_request(state: TravelState, domain: PlaceDomain, slot_suffix: s
     return SearchRequest(
         domain=domain,
         slot=slot,
-        region_codes=_region_codes(region_code, profile, domain),
+        region_codes=_region_codes(region_code, profile, domain, request),
         query_text=" ".join(_keywords_for(domain, profile.get("keywords", []))),
         hard_filters=HardFilters(
             pet_allowed=request.get("pet_allowed"),
@@ -49,8 +49,23 @@ def _region_codes(
     region_code: RegionCode | None,
     profile: dict,
     domain: PlaceDomain,
+    request: TravelRequest,
 ) -> list[RegionCode]:
     if region_code:
+        soft = profile.get("soft", {})
+        keywords = profile.get("keywords", [])
+        if (
+            domain == PlaceDomain.RESTAURANT
+            and region_code in _EAST_COAST_REGIONS
+            and (
+                request.get("pet_allowed") is True
+                or (request.get("travel_days") or 1) > 1
+                or "oceanView" in soft
+                or "ocean_view" in soft
+                or "바다" in keywords
+            )
+        ):
+            return list(_EAST_COAST_REGIONS)
         return [region_code]
     soft = profile.get("soft", {})
     keywords = profile.get("keywords", [])
