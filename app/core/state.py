@@ -5,7 +5,7 @@ from typing import Annotated, Literal, TypedDict
 
 
 AgentName = Literal[
-    "destination", "restaurant", "lodging", "activity", "itinerary",
+    "destination", "restaurant", "lodging", "itinerary",
     "validator", "validation", "response",
 ]
 
@@ -49,7 +49,6 @@ class DestinationCandidate(TypedDict, total=False):
 class PreferenceProfile(TypedDict, total=False):
     keywords: list[str]
     soft: dict[str, float]
-    activity_requested: bool
 
 
 class LodgingCandidate(TypedDict, total=False):
@@ -99,7 +98,7 @@ class ScheduledVisit(TypedDict, total=False):
     day: int
     place_id: str
     name: str
-    category: Literal["DESTINATION", "RESTAURANT", "LODGING", "ACTIVITY"]
+    category: Literal["DESTINATION", "RESTAURANT", "LODGING"]
     start_time: str
     end_time: str
     travel_minutes_from_previous: int
@@ -128,7 +127,7 @@ class ItinerarySlot(TypedDict, total=False):
     slot: str
     place_id: str
     name: str
-    category: Literal["DESTINATION", "RESTAURANT", "LODGING", "ACTIVITY"]
+    category: Literal["DESTINATION", "RESTAURANT", "LODGING"]
     start_at: str
     end_at: str
     latitude: float | None

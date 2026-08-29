@@ -1,5 +1,5 @@
 from app.core.state import TravelRequest, TravelState
-from app.search.models import HardFilters, PlaceDomain, SearchRequest
+from app.search.models import HardFilters, PlaceDomain, RegionCode, SearchRequest
 from app.search.regions import region_code_for
 
 
@@ -15,6 +15,15 @@ _DOMAIN_PREFERENCES: dict[PlaceDomain, set[str]] = {
     PlaceDomain.LODGING: {"quiet", "ocean_view", "oceanView", "nature"},
 }
 
+_EAST_COAST_REGIONS = [
+    RegionCode.GOSEONG,
+    RegionCode.SOKCHO,
+    RegionCode.YANGYANG,
+    RegionCode.GANGNEUNG,
+    RegionCode.DONGHAE,
+    RegionCode.SAMCHEOK,
+]
+
 
 def build_search_request(state: TravelState, domain: PlaceDomain, slot_suffix: str) -> SearchRequest:
     request = state["request"]
@@ -24,7 +33,7 @@ def build_search_request(state: TravelState, domain: PlaceDomain, slot_suffix: s
     return SearchRequest(
         domain=domain,
         slot=slot,
-        region_codes=[region_code] if region_code else [],
+        region_codes=_region_codes(region_code, profile, domain, request),
         query_text=" ".join(_keywords_for(domain, profile.get("keywords", []))),
         hard_filters=HardFilters(
             pet_allowed=request.get("pet_allowed"),
@@ -34,6 +43,37 @@ def build_search_request(state: TravelState, domain: PlaceDomain, slot_suffix: s
         soft_preferences=_preferences_for(domain, profile.get("soft", {})),
         limit=_candidate_limit(request, domain),
     )
+
+
+def _region_codes(
+    region_code: RegionCode | None,
+    profile: dict,
+    domain: PlaceDomain,
+    request: TravelRequest,
+) -> list[RegionCode]:
+    if region_code:
+        soft = profile.get("soft", {})
+        keywords = profile.get("keywords", [])
+        if (
+            domain == PlaceDomain.RESTAURANT
+            and region_code in _EAST_COAST_REGIONS
+            and (
+                request.get("pet_allowed") is True
+                or (request.get("travel_days") or 1) > 1
+                or "oceanView" in soft
+                or "ocean_view" in soft
+                or "바다" in keywords
+            )
+        ):
+            return list(_EAST_COAST_REGIONS)
+        return [region_code]
+    soft = profile.get("soft", {})
+    keywords = profile.get("keywords", [])
+    if domain != PlaceDomain.RESTAURANT and (
+        "oceanView" in soft or "ocean_view" in soft or "바다" in keywords
+    ):
+        return list(_EAST_COAST_REGIONS)
+    return []
 
 
 def _keywords_for(domain: PlaceDomain, keywords: list[str]) -> list[str]:

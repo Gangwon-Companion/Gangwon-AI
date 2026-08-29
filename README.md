@@ -6,7 +6,7 @@ LangGraph로 여행 요청을 상태로 관리하고, Supervisor Agent가 필요
 ## 프로젝트 역할
 
 Spring Boot는 사용자 요청을 수신하고 기본 입력을 정규화합니다.
-FastAPI는 정규화된 요청을 받아 LangGraph를 실행하고 Agent 실행 계획을 반환합니다.
+FastAPI는 정규화된 요청을 받아 LangGraph를 실행하고 검색, 일정 생성, 검증 및 최종 응답 결과를 반환합니다.
 
 ```text
 Client
@@ -21,11 +21,15 @@ FastAPI
   - Preference Extractor
   - Conflict Checker
   - Supervisor Agent
+  - Destination / Restaurant / Lodging 검색
+  - Itinerary Agent
+  - Hard Validator / Validation Agent
+  - Response Agent
 ```
 
 ## 현재 구현 범위
 
-현재는 `Input Parser`의 일부와 `Supervisor Agent`까지 구현되어 있습니다.
+현재 검색부터 검증된 최종 응답 생성까지 메인 LangGraph에 연결되어 있습니다.
 
 ```text
 정규화된 요청
@@ -35,15 +39,19 @@ Preference Extractor
 Conflict Checker
   ↓
 Supervisor Agent
-  ├─ Destination Agent
-  ├─ Restaurant Agent
-  ├─ Lodging Agent
-  ├─ Activity Agent
-  ├─ Itinerary Agent
-  └─ Validator
+  ↓
+Destination / Restaurant / Lodging Agent
+  ↓
+Itinerary Agent
+  ↓
+Hard Validator
+  ├─ INVALID → Validation Retry
+  └─ VALID → Validation Agent
+                ├─ REVISE → Validation Retry
+                └─ PASS → Response Agent → END
 ```
 
-Destination, Restaurant, Lodging Agent의 실제 검색 기능과 Elasticsearch, Hard Validator, Validation Agent, Response Agent는 이후 단계에서 연결할 예정입니다.
+검색 Agent는 `GANGWON_BE_BASE_URL`의 Spring Boot `POST /internal/search/places`를 호출합니다. 기본 주소는 `http://localhost:8080`입니다.
 
 ## 기술 스택
 
@@ -151,23 +159,52 @@ Invoke-RestMethod `
   -Body $body
 ```
 
-정상 요청은 Supervisor의 실행 계획을 반환합니다.
+정상 요청은 검색과 일정 검증을 완료하고 `final_response`를 반환합니다. 후보 부족이나 검증 재시도 초과 시 `status=failed`, `final_response.response_status=FAILED`로 종료합니다.
 
 ```json
 {
-  "status": "planned",
-  "slots": ["DESTINATION", "LUNCH", "DINNER", "LODGING", "BREAKFAST"],
-  "selected_agents": ["destination", "restaurant", "lodging"],
-  "execution_plan": [],
+  "status": "completed",
+  "slots": ["D1_DESTINATION", "D1_LUNCH", "D1_DINNER"],
+  "selected_agents": ["destination", "restaurant"],
   "retry_count": 0,
-  "messages": [],
-  "missing_fields": [],
-  "clarification_questions": [],
-  "conflicts": []
+  "itinerary_status": "READY",
+  "hard_validation": {"status": "VALID", "violations": [], "next_actions": []},
+  "quality_validation": {"status": "PASS", "score": 100, "issues": [], "next_actions": []},
+  "final_response": {
+    "response_status": "READY",
+    "title": "강릉 1일 여행 일정",
+    "summary": "검증을 통과한 여행 일정입니다.",
+    "answer": "...",
+    "days": [],
+    "notices": [],
+    "quality_score": 100,
+    "source_ids": []
+  }
 }
 ```
 
 입력 충돌이 있으면 `needs_clarification` 상태와 확인 질문을 반환합니다.
+
+## 테스트
+
+기본 단위·계약 테스트는 외부 서비스 없이 실행됩니다.
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+```
+
+BE와 Elasticsearch를 실행한 상태에서는 실제 검색 계약과 `/internal/travel/plan` 종단 응답을 검사합니다.
+
+```powershell
+$env:RUN_BE_INTEGRATION_TESTS = "1"
+$env:GANGWON_BE_BASE_URL = "http://localhost:8080"
+.\.venv\Scripts\python.exe -m unittest tests.test_be_e2e -v
+```
+
+live E2E는 HTTP 200이나 단순 종단 도달만으로 통과하지 않습니다. 실제 데이터로
+`completed`, `READY`, `VALID`, `PASS`, 빈 `missing_slots`와 3개 이상의 일정 항목을
+모두 검증합니다. 후보 부족으로 종료되는 의도된 실패 경로는 외부 서비스가 필요 없는
+그래프 테스트에서 별도로 검증합니다.
 
 ## 디렉터리 구조
 

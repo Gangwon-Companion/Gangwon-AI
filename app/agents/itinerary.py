@@ -14,7 +14,6 @@ _SLOT_RULES: dict[str, tuple[str, str, int]] = {
     "BREAKFAST": ("RESTAURANT", "08:00", 60),
     "DESTINATION": ("DESTINATION", "10:00", 120),
     "LUNCH": ("RESTAURANT", "12:30", 60),
-    "ACTIVITY": ("ACTIVITY", "14:30", 120),
     "DINNER": ("RESTAURANT", "18:00", 90),
     "LODGING": ("LODGING", "20:00", 60),
 }
@@ -23,7 +22,6 @@ _CATEGORY_AGENT: dict[str, AgentName] = {
     "DESTINATION": "destination",
     "RESTAURANT": "restaurant",
     "LODGING": "lodging",
-    "ACTIVITY": "activity",
 }
 
 
@@ -71,7 +69,11 @@ def _destination_candidates(state: TravelState) -> list[OptimizerCandidate]:
                 latitude=raw.get("map_y"),
                 longitude=raw.get("map_x"),
                 source_ids=tuple(raw.get("source_ids", [])) or ((f"destination:{place_id}",) if place_id else ()),
-                tags=(raw.get("theme_code", ""),),
+                tags=tuple(
+                    dict.fromkeys(
+                        [raw.get("theme_code", ""), *raw.get("matched_conditions", [])]
+                    )
+                ),
                 evidence_complete=bool(place_id and raw.get("source_types")),
                 address=raw.get("addr1"),
                 opens_at=raw.get("opens_at"),
@@ -102,7 +104,11 @@ def _restaurant_candidates(state: TravelState) -> list[OptimizerCandidate]:
                 opens_at=raw.get("opens_at"),
                 closes_at=raw.get("closes_at"),
                 source_ids=tuple(raw.get("source_ids", [])) or ((f"restaurant:{place_id}",) if place_id else ()),
-                tags=tuple(raw.get("cuisine", [])),
+                tags=tuple(
+                    dict.fromkeys(
+                        [*raw.get("cuisine", []), *raw.get("matched_conditions", [])]
+                    )
+                ),
                 evidence_complete=raw.get("status") == "OK",
                 address=raw.get("address"),
                 pet_allowed=raw.get("pet_allowed"),
@@ -154,7 +160,6 @@ def collect_candidates_by_slot(
         "DESTINATION": _destination_candidates(state),
         "RESTAURANT": _restaurant_candidates(state),
         "LODGING": _lodging_candidates(state),
-        "ACTIVITY": [],
     }
     return {spec.slot: list(by_category[spec.category]) for spec in specs}
 

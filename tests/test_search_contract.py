@@ -4,7 +4,8 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from app.search.models import SearchRequest, SearchResponse
+from app.search.models import RegionCode, SearchRequest, SearchResponse
+from app.search.regions import region_code_for
 
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures"
@@ -16,6 +17,10 @@ def load_fixture(name: str) -> dict[str, object]:
 
 
 class SearchContractTest(unittest.TestCase):
+    def test_region_accepts_korean_name_and_api_code(self) -> None:
+        self.assertEqual(RegionCode.GANGNEUNG, region_code_for("강릉시"))
+        self.assertEqual(RegionCode.GANGNEUNG, region_code_for("GANGNEUNG"))
+
     def test_request_fixture_round_trip(self) -> None:
         payload = load_fixture("search_request.json")
         request = SearchRequest.model_validate(payload)
