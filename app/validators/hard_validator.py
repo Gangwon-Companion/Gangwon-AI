@@ -179,13 +179,15 @@ def validate_itinerary(
     request: TravelRequest, itinerary: list[ItinerarySlot]
 ) -> HardValidationResult:
     violations: list[HardViolation] = []
-    seen_places: dict[str, ItinerarySlot] = {}
+    seen_places: dict[tuple[str, int], ItinerarySlot] = {}
     previous: ItinerarySlot | None = None
 
     for item in itinerary:
         violations.extend(_validate_item(request, item))
         place_id = item.get("place_id")
-        first_visit = seen_places.get(place_id) if place_id else None
+        day = int(item.get("day", 1))
+        visit_key = (place_id, day) if place_id else None
+        first_visit = seen_places.get(visit_key) if visit_key else None
         repeated_lodging = bool(
             first_visit
             and first_visit.get("category") == "LODGING"
@@ -200,8 +202,8 @@ def validate_itinerary(
             )
             duplicate["slots"] = [first_slot, item.get("slot", "UNKNOWN")]
             violations.append(duplicate)
-        elif place_id:
-            seen_places[place_id] = item
+        elif visit_key:
+            seen_places[visit_key] = item
 
         if previous:
             previous_end = _parse_datetime(previous.get("end_at"))
