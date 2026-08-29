@@ -251,10 +251,10 @@ class ResponseAgentTests(unittest.TestCase):
         self.assertIn("장소를 추가", prompt)
         self.assertIn("일정을 바꾸지", prompt)
         self.assertIn("추정하지", prompt)
-        self.assertIn("source_ids", prompt)
+        self.assertIn("출처 ID", prompt)
         self.assertEqual(payload["days"][0]["visits"][0]["place_id"], "D1")
         self.assertEqual(payload["notices"][0], "저녁 식당: indoor_pet_allowed 정보는 확인되지 않았습니다.")
-        self.assertEqual(payload["source_ids"], ["destination:D1"])
+        self.assertNotIn("source_ids", payload)
 
     def test_llm_renderer_accepts_natural_korean_answer_from_fake_client(self) -> None:
         llm_answer = (
