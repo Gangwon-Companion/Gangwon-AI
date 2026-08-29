@@ -75,6 +75,19 @@ class OptimizerTests(unittest.TestCase):
         self.assertEqual([], plans)
         self.assertEqual(["D1_DINNER"], missing)
 
+    def test_allows_same_restaurant_on_different_days(self) -> None:
+        slots = [
+            SlotSpec("D1_LUNCH", 1, "RESTAURANT", "12:30", 60),
+            SlotSpec("D2_LUNCH", 2, "RESTAURANT", "12:30", 60),
+        ]
+        restaurant = candidate("R1", "RESTAURANT", 0.9)
+        plans, missing = optimize_itinerary(
+            slots,
+            {"D1_LUNCH": [restaurant], "D2_LUNCH": [restaurant]},
+        )
+        self.assertEqual([], missing)
+        self.assertEqual(["R1", "R1"], [visit.place_id for visit in plans[0].visits])
+
     def test_reports_empty_slot(self) -> None:
         slots = [SlotSpec("D1_LODGING", 1, "LODGING", "20:00", 60)]
         plans, missing = optimize_itinerary(slots, {"D1_LODGING": []})
