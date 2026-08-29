@@ -20,7 +20,19 @@ def _pending_response(state: TravelState) -> FinalTravelResponse:
     hard_status = state.get("hard_validation", {}).get("status")
     quality_status = state.get("quality_validation", {}).get("status")
     failed = state.get("status") == "failed"
-    if failed:
+    violations = state.get("hard_validation", {}).get("violations", [])
+    if failed and violations:
+        reasons = list(
+            dict.fromkeys(
+                str(violation.get("reason", "")).strip()
+                for violation in violations
+                if violation.get("reason")
+            )
+        )
+        summary = "요청 조건을 확인할 근거가 부족해 안전한 여행 일정을 확정하지 못했습니다."
+        if reasons:
+            summary += "\n" + "\n".join(f"- {reason}" for reason in reasons[:5])
+    elif failed:
         summary = "여행 일정을 완성하지 못했습니다. 검색 및 검증 결과를 확인해 주세요."
     elif itinerary_status == "NEEDS_CANDIDATES":
         summary = "일정에 필요한 장소 후보를 추가로 검색하고 있습니다."
