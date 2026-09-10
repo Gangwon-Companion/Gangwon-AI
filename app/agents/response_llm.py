@@ -7,7 +7,7 @@ from typing import Protocol
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from app.core.state import ResponseDay
+from app.core.state import ResponseDay, ResponseVisit
 
 
 logger = logging.getLogger(__name__)
@@ -85,6 +85,7 @@ def render_answer_with_llm(
     quality_score: int | None,
     source_ids: list[str],
     fallback_answer: str,
+    accommodations: list[ResponseVisit] | None = None,
     client: ResponseLLMClient | None = None,
 ) -> str:
     if not llm_enabled():
@@ -100,6 +101,7 @@ def render_answer_with_llm(
                 title=title,
                 summary=summary,
                 days=days,
+                accommodations=accommodations or [],
                 notices=notices,
                 quality_score=quality_score,
                 source_ids=source_ids,
@@ -131,6 +133,7 @@ def _input_text(
     title: str,
     summary: str,
     days: list[ResponseDay],
+    accommodations: list[ResponseVisit],
     notices: list[str],
     quality_score: int | None,
     source_ids: list[str],
@@ -139,6 +142,7 @@ def _input_text(
         "title": title,
         "summary": summary,
         "days": days,
+        "accommodations": accommodations,
         "notices": notices,
         "quality_score": quality_score,
     }

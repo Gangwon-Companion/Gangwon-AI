@@ -10,6 +10,7 @@ class OptimizerCandidate:
     name: str
     category: str
     score: float
+    subtype: str | None = None
     latitude: float | None = None
     longitude: float | None = None
     opens_at: str | None = None
@@ -42,6 +43,7 @@ class ScheduledVisit:
     place_id: str
     name: str
     category: str
+    subtype: str | None
     start_time: str
     end_time: str
     travel_minutes_from_previous: int
@@ -69,7 +71,7 @@ class OptimizedPlan:
 @dataclass
 class _PartialPlan:
     visits: list[ScheduledVisit] = field(default_factory=list)
-    used_place_days: set[tuple[str, int]] = field(default_factory=set)
+    used_non_lodging_place_ids: set[str] = field(default_factory=set)
     score: float = 0.0
 
 
@@ -122,11 +124,31 @@ def _candidate_score(
     travel_minutes: int,
     preferences: set[str],
 ) -> float:
-    preference_matches = len(preferences & set(candidate.tags))
+    matched = set(candidate.tags) | set(candidate.matched_conditions)
+    preference_matches = len(preferences & matched)
     # 검증 근거가 불완전한 고득점 후보가 완전한 후보를 밀어내면 이후 Hard Validator에서
     # 전체 일정이 폐기된다. 완전한 후보가 존재하는 동안은 선택되지 않도록 큰 패널티를 둔다.
     evidence_penalty = 10_000.0 if not candidate.evidence_complete else 0.0
-    return candidate.score * 100 + preference_matches * 5 - travel_minutes * 2.0 - evidence_penalty
+    return candidate.score * 100 + preference_matches * 35 - travel_minutes * 2.0 - evidence_penalty
+
+
+def _satisfies_required_policy(
+    candidate: OptimizerCandidate,
+    required_policy: dict[str, bool],
+    required_policy_by_category: dict[str, dict[str, bool]],
+) -> bool:
+    category_policy = required_policy_by_category.get(candidate.category, {})
+    for field, required in required_policy.items():
+        if not required:
+            continue
+        if getattr(candidate, field) is not True:
+            return False
+    for field, required in category_policy.items():
+        if not required:
+            continue
+        if getattr(candidate, field) is not True:
+            return False
+    return True
 
 
 def optimize_itinerary(
@@ -134,6 +156,9 @@ def optimize_itinerary(
     candidates_by_slot: dict[str, list[OptimizerCandidate]],
     preferences: list[str] | None = None,
     *,
+    required_policy: dict[str, bool] | None = None,
+    required_policy_by_category: dict[str, dict[str, bool]] | None = None,
+    allow_lodging_repeats: bool = True,
     beam_width: int = 20,
     top_k: int = 3,
 ) -> tuple[list[OptimizedPlan], list[str]]:
@@ -146,19 +171,27 @@ def optimize_itinerary(
         return [], missing_slots
 
     preference_set = set(preferences or [])
+    required_policy = required_policy or {}
+    required_policy_by_category = required_policy_by_category or {}
     beam = [_PartialPlan()]
     for spec in slots:
         expanded: list[_PartialPlan] = []
         for partial in beam:
             previous = partial.visits[-1] if partial.visits else None
             for candidate in candidates_by_slot[spec.slot]:
-                # 연박은 같은 숙소를 유지하는 편이 자연스럽다. 숙소 외 장소만 중복을 막는다.
+                # 기본 숙소는 연박을 허용하되, 사용자가 여러 숙소를 원하면 숙소도 중복을 막는다.
                 if (
-                    (candidate.place_id, spec.day) in partial.used_place_days
-                    and candidate.category != "LODGING"
+                    (candidate.category != "LODGING" or not allow_lodging_repeats)
+                    and candidate.place_id in partial.used_non_lodging_place_ids
                 ):
                     continue
                 if candidate.category != spec.category:
+                    continue
+                if not _satisfies_required_policy(
+                    candidate,
+                    required_policy,
+                    required_policy_by_category,
+                ):
                     continue
                 if not is_open_at(candidate, spec.start_time):
                     continue
@@ -169,6 +202,7 @@ def optimize_itinerary(
                     place_id=candidate.place_id,
                     name=candidate.name,
                     category=candidate.category,
+                    subtype=candidate.subtype,
                     start_time=spec.start_time,
                     end_time=_clock(_minutes(spec.start_time) + spec.duration_minutes),
                     travel_minutes_from_previous=travel_minutes,
@@ -189,10 +223,14 @@ def optimize_itinerary(
                 expanded.append(
                     _PartialPlan(
                         visits=[*partial.visits, visit],
-                        used_place_days={
-                            *partial.used_place_days,
-                            (candidate.place_id, spec.day),
-                        },
+                        used_non_lodging_place_ids=(
+                            partial.used_non_lodging_place_ids
+                            if candidate.category == "LODGING" and allow_lodging_repeats
+                            else {
+                                *partial.used_non_lodging_place_ids,
+                                candidate.place_id,
+                            }
+                        ),
                         score=partial.score
                         + _candidate_score(candidate, travel_minutes, preference_set),
                     )

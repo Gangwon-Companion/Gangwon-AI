@@ -30,8 +30,61 @@ class SearchContractTest(unittest.TestCase):
     def test_response_fixture_round_trip(self) -> None:
         payload = load_fixture("search_response.json")
         response = SearchResponse.model_validate(payload)
+        dumped = response.model_dump(mode="json")
+        dumped.pop("diagnostics", None)
 
-        self.assertEqual(response.model_dump(mode="json"), payload)
+        self.assertEqual(dumped, payload)
+
+    def test_response_accepts_top_level_policy_fields(self) -> None:
+        payload = load_fixture("search_response.json")
+        payload["results"][0]["evidence"] = []
+
+        response = SearchResponse.model_validate(payload)
+        candidate = response.results[0]
+
+        self.assertTrue(candidate.pet_allowed)
+        self.assertEqual("SMALL", candidate.max_pet_size.value)  # type: ignore[union-attr]
+        self.assertTrue(candidate.wheelchair_accessible)
+        self.assertTrue(candidate.field_value("pet_allowed"))
+        self.assertEqual("SMALL", candidate.field_value("max_pet_size"))
+        self.assertTrue(candidate.field_value("wheelchair_accessible"))
+
+    def test_response_accepts_shortage_diagnostics(self) -> None:
+        payload = load_fixture("search_response.json")
+        payload["diagnostics"] = {
+            "requested_limit": 100,
+            "returned_count": 21,
+            "unique_count": 21,
+            "shortage": 79,
+            "failure_reasons": [
+                "NO_TEXT_MATCH",
+                "NOT_ENOUGH_UNIQUE_CANDIDATES",
+                "LOW_RESULT_COUNT",
+            ],
+            "under_matched_preferences": ["food"],
+            "unmatched_query_terms": ["해산물"],
+            "missing_evidence_fields": ["pet_allowed"],
+            "counts": {
+                "current": 0,
+                "without_query": 21,
+                "without_policy_filters": 0,
+                "without_operating_hours": 0,
+                "region_only": 121,
+                "domain_only": 1716,
+            },
+            "suggested_actions": [
+                "EXPAND_QUERY_TEXT",
+                "DROP_QUERY_TEXT",
+                "INCREASE_LIMIT",
+            ],
+        }
+
+        response = SearchResponse.model_validate(payload)
+
+        self.assertIsNotNone(response.diagnostics)
+        self.assertEqual(79, response.diagnostics.shortage)  # type: ignore[union-attr]
+        self.assertIn("NO_TEXT_MATCH", response.diagnostics.failure_reasons)  # type: ignore[union-attr]
+        self.assertEqual(["해산물"], response.diagnostics.unmatched_query_terms)  # type: ignore[union-attr]
 
     def test_pet_size_requires_explicit_pet_allowed(self) -> None:
         payload = load_fixture("search_request.json")

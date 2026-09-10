@@ -37,6 +37,10 @@ class DestinationCandidate(TypedDict, total=False):
     score: float
     reason: str
     matched_conditions: list[str]
+    matched_keywords: list[str]
+    matched_preference_details: list[dict[str, object]]
+    region_code: str | None
+    region_match: bool | None
     opens_at: str | None
     closes_at: str | None
     pet_allowed: bool | None
@@ -64,6 +68,10 @@ class LodgingCandidate(TypedDict, total=False):
     address: str
     reason: str
     matched_conditions: list[str]
+    matched_keywords: list[str]
+    matched_preference_details: list[dict[str, object]]
+    region_code: str | None
+    region_match: bool | None
     pet_allowed: bool | None
     max_pet_size: str | None
     indoor_pet_allowed: bool | None
@@ -74,11 +82,17 @@ class LodgingCandidate(TypedDict, total=False):
 class RestaurantCandidate(TypedDict, total=False):
     place_id: str
     name: str
+    subtype: str | None
     distance_km: float | None
     cuisine: list[str]
     score: float
     status: Literal["OK", "INSUFFICIENT_EVIDENCE"]
     matched_conditions: list[str]
+    matched_keywords: list[str]
+    matched_preference_details: list[dict[str, object]]
+    place_subtype: str | None
+    region_code: str | None
+    region_match: bool | None
     missing_fields: list[str]
     reason: str
     latitude: float | None
@@ -99,6 +113,7 @@ class ScheduledVisit(TypedDict, total=False):
     place_id: str
     name: str
     category: Literal["DESTINATION", "RESTAURANT", "LODGING"]
+    subtype: str | None
     start_time: str
     end_time: str
     travel_minutes_from_previous: int
@@ -123,11 +138,45 @@ class RetryAction(TypedDict):
     instruction: str
 
 
+class SearchRelaxation(TypedDict, total=False):
+    agent: AgentName
+    domain: str
+    slot: str
+    retry_count: int
+    original_query: str
+    used_query: str
+    original_regions: list[str]
+    used_regions: list[str]
+    strategy: str
+    reason: str
+    source: str
+    failure_reasons: list[str]
+    suggested_actions: list[str]
+
+
+class SearchDiagnostic(TypedDict):
+    agent: AgentName
+    domain: str
+    slot: str
+    retry_count: int
+    requested_limit: int
+    returned_count: int
+    unique_count: int
+    shortage: int
+    failure_reasons: list[str]
+    under_matched_preferences: list[str]
+    unmatched_query_terms: list[str]
+    missing_evidence_fields: list[str]
+    counts: dict[str, int]
+    suggested_actions: list[str]
+
+
 class ItinerarySlot(TypedDict, total=False):
     slot: str
     place_id: str
     name: str
     category: Literal["DESTINATION", "RESTAURANT", "LODGING"]
+    subtype: str | None
     start_at: str
     end_at: str
     latitude: float | None
@@ -171,6 +220,8 @@ class QualityIssue(TypedDict, total=False):
     severity: Literal["MINOR", "MAJOR"]
     slots: list[str]
     reason: str
+    target_agent: AgentName
+    target_preferences: list[str]
 
 
 class QualityValidationResult(TypedDict):
@@ -186,6 +237,7 @@ class ResponseVisit(TypedDict, total=False):
     place_id: str
     name: str
     category: str
+    subtype: str | None
     address: str | None
     recommendation_reason: str
     operating_hours: str | None
@@ -208,6 +260,7 @@ class FinalTravelResponse(TypedDict):
     summary: str
     answer: str
     days: list[ResponseDay]
+    accommodations: list[ResponseVisit]
     notices: list[str]
     quality_score: int | None
     source_ids: list[str]
@@ -229,6 +282,8 @@ class TravelState(TypedDict, total=False):
     execution_plan: list[dict[str, object]]
     retry_count: int
     retry_agents: list[AgentName]
+    search_relaxations: Annotated[list[SearchRelaxation], add]
+    search_diagnostics: Annotated[list[SearchDiagnostic], add]
     status: Literal["needs_clarification", "planned", "running", "completed", "failed"]
     errors: Annotated[list[str], add]
     messages: Annotated[list[str], add]

@@ -19,6 +19,7 @@ class QualityIssueType(StrEnum):
     ROUTE_INEFFICIENCY = "ROUTE_INEFFICIENCY"
     SCHEDULE_TOO_TIGHT = "SCHEDULE_TOO_TIGHT"
     MEAL_TIME_INAPPROPRIATE = "MEAL_TIME_INAPPROPRIATE"
+    DUPLICATE_PLACE = "DUPLICATE_PLACE"
     CATEGORY_REPETITION = "CATEGORY_REPETITION"
     PREFERENCE_UNDERREFLECTED = "PREFERENCE_UNDERREFLECTED"
     TRIP_PURPOSE_UNCLEAR = "TRIP_PURPOSE_UNCLEAR"
@@ -28,6 +29,42 @@ _CATEGORY_AGENT: dict[str, AgentName] = {
     "DESTINATION": "destination",
     "RESTAURANT": "restaurant",
     "LODGING": "lodging",
+}
+
+_RESTAURANT_PREFERENCES = {
+    "음식",
+    "맛집",
+    "식당",
+    "해산물",
+    "회",
+    "물회",
+    "생선",
+    "대게",
+    "홍게",
+    "조개",
+    "막국수",
+    "순두부",
+    "한식",
+    "양식",
+    "중식",
+    "카페",
+    "커피",
+    "디저트",
+    "베이커리",
+    "브런치",
+    "food",
+    "cafe",
+}
+_LODGING_PREFERENCES = {
+    "숙소",
+    "숙박",
+    "호텔",
+    "펜션",
+    "리조트",
+    "민박",
+    "게스트하우스",
+    "lodging",
+    "accommodation",
 }
 
 
@@ -44,13 +81,21 @@ def _issue(
     slots: list[str],
     reason: str,
     severity: Literal["MINOR", "MAJOR"] = "MAJOR",
+    *,
+    target_agent: AgentName | None = None,
+    target_preferences: list[str] | None = None,
 ) -> QualityIssue:
-    return {
+    issue: QualityIssue = {
         "type": issue_type.value,
         "severity": severity,
         "slots": slots,
         "reason": reason,
     }
+    if target_agent is not None:
+        issue["target_agent"] = target_agent
+    if target_preferences:
+        issue["target_preferences"] = target_preferences
+    return issue
 
 
 def _evaluate_route(itinerary: list[ItinerarySlot]) -> list[QualityIssue]:
@@ -110,6 +155,29 @@ def _evaluate_meals(itinerary: list[ItinerarySlot]) -> list[QualityIssue]:
     return issues
 
 
+def _evaluate_duplicate_places(itinerary: list[ItinerarySlot]) -> list[QualityIssue]:
+    issues: list[QualityIssue] = []
+    seen: dict[str, ItinerarySlot] = {}
+    for item in itinerary:
+        place_id = item.get("place_id")
+        if not place_id or item.get("category") == "LODGING":
+            continue
+        first = seen.get(place_id)
+        if first:
+            first_slot = first.get("slot", "UNKNOWN")
+            current_slot = item.get("slot", "UNKNOWN")
+            issues.append(
+                _issue(
+                    QualityIssueType.DUPLICATE_PLACE,
+                    [first_slot, current_slot],
+                    f"{first_slot} 슬롯과 {current_slot} 슬롯에 같은 장소가 반복 배치되었습니다.",
+                )
+            )
+        else:
+            seen[place_id] = item
+    return issues
+
+
 def _evaluate_repetition(itinerary: list[ItinerarySlot]) -> list[QualityIssue]:
     experiential = [
         item for item in itinerary if item.get("category") not in {"RESTAURANT", "LODGING"}
@@ -147,13 +215,45 @@ def _evaluate_preferences(state: TravelState) -> list[QualityIssue]:
     ratio = len(matched) / len(expected)
     if ratio >= 0.5:
         return []
+    missing = sorted(expected - matched)
+    slots_by_agent = _slots_by_agent(itinerary)
+    missing_by_agent: dict[AgentName, list[str]] = {}
+    for preference in missing:
+        agent = _agent_for_preference(preference)
+        missing_by_agent.setdefault(agent, []).append(preference)
+
     return [
         _issue(
             QualityIssueType.PREFERENCE_UNDERREFLECTED,
-            [item.get("slot", "UNKNOWN") for item in itinerary],
-            f"사용자 선호 {len(preferences)}개 중 {len(matched)}개만 일정에 반영되었습니다.",
+            slots_by_agent.get(agent) or [item.get("slot", "UNKNOWN") for item in itinerary],
+            (
+                f"{', '.join(agent_preferences)} 선호가 {agent} 일정 후보에 충분히 "
+                "반영되지 않았습니다."
+            ),
+            target_agent=agent,
+            target_preferences=agent_preferences,
         )
+        for agent, agent_preferences in missing_by_agent.items()
     ]
+
+
+def _agent_for_preference(preference: str) -> AgentName:
+    if preference in _RESTAURANT_PREFERENCES:
+        return "restaurant"
+    if preference in _LODGING_PREFERENCES or "숙소" in preference:
+        return "lodging"
+    return "destination"
+
+
+def _slots_by_agent(itinerary: list[ItinerarySlot]) -> dict[AgentName, list[str]]:
+    grouped: dict[AgentName, list[str]] = {}
+    for item in itinerary:
+        category = item.get("category", "")
+        agent = _CATEGORY_AGENT.get(category)
+        slot = item.get("slot")
+        if agent and slot:
+            grouped.setdefault(agent, []).append(slot)
+    return grouped
 
 
 def _evaluate_trip_purpose(state: TravelState) -> list[QualityIssue]:
@@ -186,11 +286,12 @@ def _actions_for(
     itinerary_types = {
         QualityIssueType.SCHEDULE_TOO_TIGHT.value,
         QualityIssueType.ROUTE_INEFFICIENCY.value,
+        QualityIssueType.DUPLICATE_PLACE.value,
     }
     for issue in issues:
         slots = issue.get("slots", [])
-        agent: AgentName = "itinerary"
-        if issue.get("type") not in itinerary_types and slots:
+        agent: AgentName = issue.get("target_agent", "itinerary")
+        if agent == "itinerary" and issue.get("type") not in itinerary_types and slots:
             category = by_slot.get(slots[0], {}).get("category", "")
             agent = _CATEGORY_AGENT.get(category, "itinerary")
         key = (agent, tuple(slots))
@@ -208,6 +309,7 @@ def evaluate_itinerary(state: TravelState) -> QualityValidationResult:
         *_evaluate_route(itinerary),
         *_evaluate_pacing(itinerary),
         *_evaluate_meals(itinerary),
+        *_evaluate_duplicate_places(itinerary),
         *_evaluate_repetition(itinerary),
         *_evaluate_preferences(state),
         *_evaluate_trip_purpose(state),

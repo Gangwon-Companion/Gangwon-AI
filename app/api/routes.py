@@ -16,6 +16,8 @@ from app.schemas.travel import (
     RestaurantCandidate,
     RetryAction,
     ScheduledVisit,
+    SearchRelaxation,
+    SearchDiagnostic,
     SearchRequest,
     TravelPlanRequest,
     TravelPlanResponse,
@@ -165,6 +167,12 @@ def create_travel_plan(payload: TravelPlanRequest) -> TravelPlanResponse:
         ],
         missing_slots=state.get("missing_slots", []),
         retry_actions=[RetryAction(**item) for item in state.get("retry_actions", [])],
+        search_relaxations=[
+            SearchRelaxation(**item) for item in state.get("search_relaxations", [])
+        ],
+        search_diagnostics=[
+            SearchDiagnostic(**item) for item in state.get("search_diagnostics", [])
+        ],
         final_response=(
             FinalTravelResponse.model_validate(state["final_response"])
             if state.get("final_response")

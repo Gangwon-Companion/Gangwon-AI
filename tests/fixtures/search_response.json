@@ -12,11 +12,30 @@
       "distance_km": 4.9,
       "score": 0.86,
       "status": "OK",
+      "place_subtype": "DESTINATION",
+      "region_code": "GANGNEUNG",
+      "region_match": true,
       "missing_fields": [],
       "matched_preferences": ["ocean_view"],
+      "matched_keywords": ["바다"],
+      "matched_preference_details": [
+        {
+          "preference": "ocean_view",
+          "keywords": ["바다"]
+        }
+      ],
+      "pet_allowed": true,
+      "max_pet_size": "SMALL",
+      "indoor_pet_allowed": null,
+      "wheelchair_accessible": true,
       "evidence": [
         {
           "field": "pet_allowed",
+          "value": true,
+          "source": "TOUR_API"
+        },
+        {
+          "field": "wheelchair_accessible",
           "value": true,
           "source": "TOUR_API"
         }
@@ -31,8 +50,17 @@
       "distance_km": null,
       "score": 0.41,
       "status": "INSUFFICIENT_EVIDENCE",
+      "place_subtype": "DESTINATION",
+      "region_code": "GANGNEUNG",
+      "region_match": true,
       "missing_fields": ["wheelchair_accessible"],
       "matched_preferences": [],
+      "matched_keywords": [],
+      "matched_preference_details": [],
+      "pet_allowed": null,
+      "max_pet_size": null,
+      "indoor_pet_allowed": null,
+      "wheelchair_accessible": null,
       "evidence": []
     }
   ]
