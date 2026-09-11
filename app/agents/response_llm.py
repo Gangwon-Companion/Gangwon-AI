@@ -8,6 +8,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from app.core.state import ResponseDay, ResponseVisit
+from app.agents.answer_grounding import validate_claims, validate_final_answer
 
 
 logger = logging.getLogger(__name__)
@@ -96,7 +97,9 @@ def render_answer_with_llm(
     try:
         answer = llm_client.create_answer(
             model=model,
-            instructions=_instructions(),
+            instructions=(_instructions() + "\nReturn JSON with answer, claims, and uncertainties when possible. "
+                          "Each claim must include text, place_id, evidence_fields, evidence, and confidence. "
+                          "Evidence items must contain the exact field and value used in the claim."),
             input_text=_input_text(
                 title=title,
                 summary=summary,
@@ -115,7 +118,29 @@ def render_answer_with_llm(
             exc,
         )
         return fallback_answer
-    return answer or fallback_answer
+    if not answer:
+        return fallback_answer
+    structured = _parse_structured_answer(answer)
+    if structured is not None:
+        grounded_claims, claim_reason = validate_claims(
+            structured.get("claims"),
+            days=days,
+            accommodations=accommodations or [],
+        )
+        if not grounded_claims:
+            logger.warning("Response LLM claims failed grounding; using fallback. reason=%s", claim_reason)
+            return fallback_answer
+        answer = structured.get("answer", "")
+    grounded, reason = validate_final_answer(
+        answer,
+        days=days,
+        notices=notices,
+        accommodations=accommodations or [],
+    )
+    if not grounded:
+        logger.warning("Response LLM answer failed grounding; using fallback. reason=%s", reason)
+        return fallback_answer
+    return answer
 
 
 def _instructions() -> str:
@@ -145,6 +170,7 @@ def _input_text(
         "accommodations": accommodations,
         "notices": notices,
         "quality_score": quality_score,
+        "source_ids": source_ids,
     }
     return json.dumps(payload, ensure_ascii=False, indent=2)
 
@@ -164,6 +190,16 @@ def _extract_text_from_output(payload: dict[str, object]) -> str:
             if isinstance(part, dict) and isinstance(part.get("text"), str):
                 chunks.append(part["text"])
     return "\n".join(chunk.strip() for chunk in chunks if chunk.strip())
+
+
+def _parse_structured_answer(answer: str) -> dict[str, object] | None:
+    try:
+        payload = json.loads(answer)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(payload, dict) or "answer" not in payload or "claims" not in payload:
+        return None
+    return payload
 
 
 def _http_error_detail(exc: HTTPError) -> str:
