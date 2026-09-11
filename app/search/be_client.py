@@ -26,6 +26,6 @@ class BeSearchClient(SearchClient):
         try:
             return SearchResponse.model_validate(payload)
         except ValidationError as exc:
-            raise SearchClientError("BE 검색 응답이 공통 계약과 다릅니다.") from exc
+            raise SearchClientError(f"BE 검색 응답이 공통 계약과 다릅니다: {exc}") from exc
 
 search_client: SearchClient = BeSearchClient()

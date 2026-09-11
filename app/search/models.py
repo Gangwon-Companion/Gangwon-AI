@@ -48,6 +48,15 @@ class SearchStatus(str, Enum):
     INSUFFICIENT_EVIDENCE = "INSUFFICIENT_EVIDENCE"
 
 
+class PlaceSubtype(str, Enum):
+    RESTAURANT = "RESTAURANT"
+    CAFE = "CAFE"
+    BAKERY = "BAKERY"
+    DESSERT = "DESSERT"
+    LODGING = "LODGING"
+    DESTINATION = "DESTINATION"
+
+
 class HardFilters(ContractModel):
     pet_allowed: bool | None = None
     pet_size: PetSize | None = None
@@ -112,8 +121,17 @@ class SearchCandidate(ContractModel):
     distance_km: float | None = Field(default=None, ge=0)
     score: float = Field(ge=0)
     status: SearchStatus
+    place_subtype: PlaceSubtype | None = None
+    region_code: RegionCode | None = None
+    region_match: bool | None = None
     missing_fields: list[str] = Field(default_factory=list)
     matched_preferences: list[str] = Field(default_factory=list)
+    matched_keywords: list[str] = Field(default_factory=list)
+    matched_preference_details: list[dict[str, Any]] = Field(default_factory=list)
+    pet_allowed: bool | None = None
+    max_pet_size: PetSize | None = None
+    indoor_pet_allowed: bool | None = None
+    wheelchair_accessible: bool | None = None
     evidence: list[Evidence] = Field(default_factory=list)
 
     @model_validator(mode="after")
@@ -124,6 +142,33 @@ class SearchCandidate(ContractModel):
             raise ValueError("INSUFFICIENT_EVIDENCE requires missing_fields")
         return self
 
+    def field_value(self, field: str) -> Any:
+        value = getattr(self, field, None)
+        if value is not None:
+            return value.value if isinstance(value, Enum) else value
+        return next((entry.value for entry in self.evidence if entry.field == field), None)
+
+
+class SearchDiagnostics(ContractModel):
+    requested_limit: int = Field(ge=1, le=100)
+    returned_count: int = Field(ge=0)
+    unique_count: int = Field(ge=0)
+    shortage: int = Field(ge=0)
+    failure_reasons: list[str] = Field(default_factory=list)
+    under_matched_preferences: list[str] = Field(default_factory=list)
+    unmatched_query_terms: list[str] = Field(default_factory=list)
+    missing_evidence_fields: list[str] = Field(default_factory=list)
+    counts: dict[str, int] = Field(default_factory=dict)
+    suggested_actions: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_counts(self) -> SearchDiagnostics:
+        invalid_counts = [key for key, value in self.counts.items() if value < 0]
+        if invalid_counts:
+            raise ValueError("diagnostic counts cannot be negative")
+        return self
+
 
 class SearchResponse(ContractModel):
     results: list[SearchCandidate] = Field(default_factory=list)
+    diagnostics: SearchDiagnostics | None = None

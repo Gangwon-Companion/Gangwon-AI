@@ -117,11 +117,44 @@ class ResponseAgentTests(unittest.TestCase):
         result = build_final_response(valid_state())  # type: ignore[arg-type]
         restaurant = result["days"][0]["visits"][1]
 
+        self.assertIn("운영시간과 이용 가능 여부는 달라질 수 있으니", result["notices"][0])
         self.assertIsNone(restaurant["accessibility"]["indoor_pet_allowed"])
         self.assertIn("indoor_pet_allowed", restaurant["unverified_fields"])
         self.assertTrue(
             any("indoor_pet_allowed" in notice for notice in result["notices"])
         )
+
+    def test_ready_response_always_includes_visit_confirmation_notice(self) -> None:
+        result = build_final_response(valid_state())  # type: ignore[arg-type]
+
+        self.assertIn("방문 전 한 번 더 확인", result["answer"])
+        self.assertTrue(
+            any("운영시간과 이용 가능 여부는 달라질 수 있으니" in notice for notice in result["notices"])
+        )
+
+    def test_success_response_explains_search_relaxation(self) -> None:
+        state = valid_state()
+        state["search_relaxations"] = [
+            {
+                "agent": "restaurant",
+                "domain": "RESTAURANT",
+                "slot": "D1_LUNCH",
+                "retry_count": 2,
+                "original_query": "해산물",
+                "used_query": "맛집 음식 식당",
+                "original_regions": ["GANGNEUNG"],
+                "used_regions": ["GANGNEUNG", "DONGHAE"],
+                "strategy": "EXPAND_TO_NEARBY_REGION",
+                "reason": "음식점 후보가 부족해 요청 지역에서 인접 지역까지 검색 범위를 넓혔습니다.",
+            }
+        ]
+
+        result = build_final_response(state)  # type: ignore[arg-type]
+
+        self.assertEqual(result["response_status"], "READY")
+        self.assertTrue(any("음식점 후보가 부족해" in notice for notice in result["notices"]))
+        self.assertIn("시도한 보완", result["answer"])
+        self.assertIn("인접 지역 후보", result["answer"])
 
     def test_does_not_publish_unvalidated_itinerary(self) -> None:
         for field, value in (
@@ -135,6 +168,71 @@ class ResponseAgentTests(unittest.TestCase):
             self.assertEqual(result["response_status"], "PENDING")
             self.assertEqual(result["days"], [])
 
+    def test_failed_response_is_user_friendly(self) -> None:
+        state = valid_state()
+        state["status"] = "failed"
+        state["itinerary_status"] = "NEEDS_CANDIDATES"
+        state["missing_slots"] = ["D1_LUNCH", "D1_DINNER"]
+        state["search_relaxations"] = [
+            {
+                "agent": "restaurant",
+                "domain": "RESTAURANT",
+                "slot": "D1_LUNCH",
+                "retry_count": 1,
+                "original_query": "해산물",
+                "used_query": "해산물 맛집 음식 식당",
+                "strategy": "EXPAND_QUERY_TEXT",
+                "reason": "음식점 후보가 부족해 검색어를 넓혔습니다.",
+            }
+        ]
+        state["search_diagnostics"] = [
+            {
+                "agent": "restaurant",
+                "domain": "RESTAURANT",
+                "slot": "D1_LUNCH",
+                "retry_count": 1,
+                "requested_limit": 32,
+                "returned_count": 1,
+                "unique_count": 1,
+                "shortage": 2,
+                "failure_reasons": ["LOW_RESULT_COUNT"],
+                "counts": {},
+                "suggested_actions": ["EXPAND_QUERY"],
+            }
+        ]
+
+        result = build_final_response(state)  # type: ignore[arg-type]
+
+        self.assertEqual(result["response_status"], "FAILED")
+        self.assertEqual(result["days"], [])
+        self.assertIn("요청 조건에 맞는 장소 후보가 부족해", result["summary"])
+        self.assertIn("시도한 보완", result["answer"])
+        self.assertIn("확인된 이유", result["answer"])
+        self.assertIn("음식점 검색 결과가 필요한 수보다 2개 부족했습니다.", result["notices"])
+
+    def test_failed_response_explains_pet_and_accessible_destination_shortage(self) -> None:
+        state = valid_state()
+        state["request"] = {
+            "region": "속초",
+            "travel_days": 2,
+            "pet_allowed": True,
+            "pet_size": "SMALL",
+            "wheelchair_accessible": True,
+        }
+        state["status"] = "failed"
+        state["itinerary_status"] = "NEEDS_CANDIDATES"
+        state["missing_slots"] = ["D2_DESTINATION"]
+        state["hard_validation"] = None
+        state["quality_validation"] = None
+
+        result = build_final_response(state)  # type: ignore[arg-type]
+
+        self.assertEqual("FAILED", result["response_status"])
+        self.assertTrue(
+            any("반려동물 동반과 휠체어 이용 조건" in notice for notice in result["notices"])
+        )
+        self.assertIn("방문지를 줄이면", result["answer"])
+
     def test_missing_evidence_is_explicit(self) -> None:
         state = valid_state()
         visit = state["itinerary"][1]  # type: ignore[index]
@@ -147,6 +245,20 @@ class ResponseAgentTests(unittest.TestCase):
         self.assertIn("address", visit["unverified_fields"])
         self.assertIn("source_ids", visit["unverified_fields"])
         self.assertEqual(visit["source_ids"], [])
+
+    def test_uses_itinerary_start_and_end_time_when_iso_times_are_missing(self) -> None:
+        state = valid_state()
+        visit = state["itinerary"][1]  # type: ignore[index]
+        visit.pop("start_at", None)  # type: ignore[union-attr]
+        visit.pop("end_at", None)  # type: ignore[union-attr]
+        visit["day"] = 1  # type: ignore[index]
+        visit["start_time"] = "10:00"  # type: ignore[index]
+        visit["end_time"] = "12:00"  # type: ignore[index]
+
+        result = build_final_response(state)  # type: ignore[arg-type]
+
+        self.assertEqual(result["days"][0]["visits"][0]["time"], "10:00-12:00")
+        self.assertIn("- 10:00-12:00 바다 전망대", result["answer"])
 
     def test_response_node_does_not_mutate_input(self) -> None:
         state = valid_state()
@@ -292,6 +404,43 @@ class ResponseAgentTests(unittest.TestCase):
         self.assertEqual(payload["response_status"], "READY")
         self.assertEqual(payload["days"][0]["visits"][0]["place_id"], "D1")
         self.assertEqual(payload["source_ids"], ["destination:D1", "restaurant:R2"])
+
+    def test_separates_lodging_from_daily_visits(self) -> None:
+        state = valid_state()
+        state["request"]["travel_days"] = 2  # type: ignore[index]
+        state["itinerary"].append(  # type: ignore[union-attr]
+            {
+                "slot": "D1_LODGING",
+                "place_id": "L1",
+                "name": "바다 숙소",
+                "category": "LODGING",
+                "start_time": "20:00",
+                "end_time": "21:00",
+                "travel_minutes_from_previous": 15,
+                "source_ids": ["lodging:L1"],
+                "tags": ["숙소"],
+                "address": "강릉시 숙소길 3",
+                "opens_at": "15:00",
+                "closes_at": "23:00",
+                "pet_allowed": True,
+                "wheelchair_accessible": True,
+                "indoor_pet_allowed": True,
+                "max_pet_size": "SMALL",
+                "recommendation_reason": "동선 중간에 묵기 좋은 숙소입니다.",
+                "matched_conditions": ["숙소"],
+            }
+        )
+
+        result = build_final_response(state)  # type: ignore[arg-type]
+
+        daily_place_ids = [
+            visit["place_id"]
+            for day in result["days"]
+            for visit in day["visits"]
+        ]
+        self.assertNotIn("L1", daily_place_ids)
+        self.assertEqual("L1", result["accommodations"][0]["place_id"])
+        self.assertIn("숙소 1개는 별도로 안내합니다.", result["summary"])
 
 
 if __name__ == "__main__":

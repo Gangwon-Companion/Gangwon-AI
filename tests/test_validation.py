@@ -54,7 +54,7 @@ class HardValidatorTests(unittest.TestCase):
         self.assertEqual([], result["violations"])
 
     def test_policy_and_missing_evidence_fail(self) -> None:
-        denied = slot("D1_LUNCH", "R1", "2026-08-23T12:00:00+09:00", "2026-08-23T13:00:00+09:00", category="RESTAURANT")
+        denied = slot("D1_DESTINATION", "D1", "2026-08-23T10:00:00+09:00", "2026-08-23T12:00:00+09:00")
         denied["max_pet_size"] = "SMALL"
         missing = slot("D1_DINNER", "R2", "2026-08-23T18:00:00+09:00", "2026-08-23T19:00:00+09:00", category="RESTAURANT")
         missing["source_ids"] = []
@@ -62,7 +62,61 @@ class HardValidatorTests(unittest.TestCase):
         codes = {item["code"] for item in result["violations"]}
         self.assertIn("PET_SIZE_NOT_ALLOWED", codes)
         self.assertIn("EVIDENCE_MISSING", codes)
-        self.assertTrue(all(action["agent"] == "restaurant" for action in result["next_actions"]))
+        agents = {action["agent"] for action in result["next_actions"]}
+        self.assertEqual({"destination", "restaurant"}, agents)
+
+    def test_missing_pet_size_evidence_does_not_fail_when_pet_allowed_is_known(self) -> None:
+        item = slot(
+            "D1_LUNCH",
+            "R1",
+            "2026-08-23T12:00:00+09:00",
+            "2026-08-23T13:00:00+09:00",
+            category="RESTAURANT",
+        )
+        item["max_pet_size"] = None
+
+        result = validate_itinerary(self.request, [item])  # type: ignore[arg-type]
+
+        self.assertEqual("VALID", result["status"])
+
+    def test_restaurant_and_lodging_policy_gaps_do_not_fail(self) -> None:
+        restaurant = slot(
+            "D1_LUNCH",
+            "R1",
+            "2026-08-23T12:00:00+09:00",
+            "2026-08-23T13:00:00+09:00",
+            category="RESTAURANT",
+        )
+        lodging = slot(
+            "D1_LODGING",
+            "L1",
+            "2026-08-23T20:00:00+09:00",
+            "2026-08-23T21:00:00+09:00",
+            category="LODGING",
+        )
+        for item in (restaurant, lodging):
+            item["pet_allowed"] = None
+            item["indoor_pet_allowed"] = None
+            item["wheelchair_accessible"] = None
+
+        result = validate_itinerary(self.request, [restaurant, lodging])  # type: ignore[arg-type]
+
+        self.assertEqual("VALID", result["status"])
+
+    def test_destination_policy_gaps_still_fail(self) -> None:
+        item = slot(
+            "D1_DESTINATION",
+            "D1",
+            "2026-08-23T10:00:00+09:00",
+            "2026-08-23T12:00:00+09:00",
+        )
+        item["pet_allowed"] = None
+        item["wheelchair_accessible"] = None
+
+        result = validate_itinerary(self.request, [item])  # type: ignore[arg-type]
+
+        self.assertEqual("INVALID", result["status"])
+        self.assertEqual("EVIDENCE_MISSING", result["violations"][0]["code"])
 
     def test_time_travel_and_duplicate_fail(self) -> None:
         first = slot("D1_DESTINATION", "P1", "2026-08-23T10:00:00+09:00", "2026-08-23T11:00:00+09:00")
@@ -89,6 +143,22 @@ class HardValidatorTests(unittest.TestCase):
 
         self.assertEqual("VALID", result["status"])
 
+    def test_rejects_same_restaurant_on_different_days(self) -> None:
+        first = slot(
+            "D1_LUNCH", "R1", "2026-08-23T12:30:00+09:00",
+            "2026-08-23T13:30:00+09:00", category="RESTAURANT"
+        )
+        second = slot(
+            "D2_DINNER", "R1", "2026-08-24T18:00:00+09:00",
+            "2026-08-24T19:30:00+09:00", category="RESTAURANT"
+        )
+
+        result = validate_itinerary({}, [first, second])  # type: ignore[arg-type]
+
+        self.assertEqual("INVALID", result["status"])
+        self.assertEqual("DUPLICATE_PLACE", result["violations"][0]["code"])
+        self.assertEqual(["D1_LUNCH", "D2_DINNER"], result["violations"][0]["slots"])
+
 
 class QualityValidationTests(unittest.TestCase):
     def test_quality_issues_request_revision(self) -> None:
@@ -106,6 +176,122 @@ class QualityValidationTests(unittest.TestCase):
         self.assertIn("ROUTE_INEFFICIENCY", issue_types)
         self.assertIn("MEAL_TIME_INAPPROPRIATE", issue_types)
         self.assertIn("PREFERENCE_UNDERREFLECTED", issue_types)
+
+    def test_quality_revises_duplicate_non_lodging_places(self) -> None:
+        itinerary = [
+            slot("D1_DESTINATION", "D1", "2026-08-23T10:00:00+09:00", "2026-08-23T12:00:00+09:00"),
+            slot("D2_DESTINATION", "D1", "2026-08-24T10:00:00+09:00", "2026-08-24T12:00:00+09:00"),
+            slot("D1_LODGING", "L1", "2026-08-23T20:00:00+09:00", "2026-08-23T21:00:00+09:00", category="LODGING"),
+            slot("D2_LODGING", "L1", "2026-08-24T20:00:00+09:00", "2026-08-24T21:00:00+09:00", category="LODGING"),
+        ]
+
+        result = evaluate_itinerary({"itinerary": itinerary})  # type: ignore[arg-type]
+
+        issue_types = {item["type"] for item in result["issues"]}
+        self.assertEqual("REVISE", result["status"])
+        self.assertIn("DUPLICATE_PLACE", issue_types)
+
+    def test_preference_shortage_routes_food_retry_to_restaurant(self) -> None:
+        itinerary = [
+            slot(
+                "D1_DESTINATION",
+                "D1",
+                "2026-08-23T10:00:00+09:00",
+                "2026-08-23T12:00:00+09:00",
+                tags=["바다"],
+            ),
+            slot(
+                "D1_LUNCH",
+                "R1",
+                "2026-08-23T12:30:00+09:00",
+                "2026-08-23T13:30:00+09:00",
+                category="RESTAURANT",
+                tags=["food"],
+            ),
+        ]
+
+        result = evaluate_itinerary(
+            {
+                "itinerary": itinerary,
+                "preference_profile": {"keywords": ["바다", "해산물", "회"]},
+            }  # type: ignore[arg-type]
+        )
+
+        preference_actions = [
+            action
+            for action in result["next_actions"]
+            if "선호" in action["instruction"]
+        ]
+        self.assertEqual(["restaurant"], [action["agent"] for action in preference_actions])
+        self.assertEqual(["D1_LUNCH"], preference_actions[0]["slots"])
+
+    def test_preference_shortage_routes_scenery_retry_to_destination(self) -> None:
+        itinerary = [
+            slot(
+                "D1_DESTINATION",
+                "D1",
+                "2026-08-23T10:00:00+09:00",
+                "2026-08-23T12:00:00+09:00",
+                tags=["역사"],
+            ),
+            slot(
+                "D1_LUNCH",
+                "R1",
+                "2026-08-23T12:30:00+09:00",
+                "2026-08-23T13:30:00+09:00",
+                category="RESTAURANT",
+                tags=["해산물"],
+            ),
+        ]
+
+        result = evaluate_itinerary(
+            {
+                "itinerary": itinerary,
+                "preference_profile": {"keywords": ["해산물", "바다", "산책"]},
+            }  # type: ignore[arg-type]
+        )
+
+        preference_actions = [
+            action
+            for action in result["next_actions"]
+            if "선호" in action["instruction"]
+        ]
+        self.assertEqual(["destination"], [action["agent"] for action in preference_actions])
+        self.assertEqual(["D1_DESTINATION"], preference_actions[0]["slots"])
+
+    def test_preference_shortage_routes_lodging_retry_to_lodging(self) -> None:
+        itinerary = [
+            slot(
+                "D1_DESTINATION",
+                "D1",
+                "2026-08-23T10:00:00+09:00",
+                "2026-08-23T12:00:00+09:00",
+                tags=["바다"],
+            ),
+            slot(
+                "D1_LODGING",
+                "L1",
+                "2026-08-23T20:00:00+09:00",
+                "2026-08-23T21:00:00+09:00",
+                category="LODGING",
+                tags=["숙소"],
+            ),
+        ]
+
+        result = evaluate_itinerary(
+            {
+                "itinerary": itinerary,
+                "preference_profile": {"keywords": ["바다", "오션뷰 숙소", "호텔"]},
+            }  # type: ignore[arg-type]
+        )
+
+        preference_actions = [
+            action
+            for action in result["next_actions"]
+            if "선호" in action["instruction"]
+        ]
+        self.assertEqual(["lodging"], [action["agent"] for action in preference_actions])
+        self.assertEqual(["D1_LODGING"], preference_actions[0]["slots"])
 
     def test_validation_requires_hard_validator_pass(self) -> None:
         with self.assertRaises(ValueError):
@@ -132,6 +318,34 @@ class SupervisorRetryTests(unittest.TestCase):
             {"retry_count": MAX_VALIDATION_RETRIES, "retry_actions": []}  # type: ignore[arg-type]
         )
         self.assertEqual("failed", result["status"])
+
+    def test_stops_early_when_required_evidence_is_missing(self) -> None:
+        state = {
+            "retry_count": 0,
+            "hard_validation": {
+                "status": "INVALID",
+                "violations": [
+                    {
+                        "code": "EVIDENCE_MISSING",
+                        "slots": ["D1_DESTINATION"],
+                        "place_id": "D1",
+                        "reason": "필수 근거 데이터가 없습니다: wheelchairAccessible",
+                    }
+                ],
+            },
+            "retry_actions": [
+                {
+                    "agent": "destination",
+                    "slots": ["D1_DESTINATION"],
+                    "instruction": "필수 근거 데이터가 없습니다: wheelchairAccessible",
+                }
+            ],
+        }
+
+        result = validation_retry_node(state)  # type: ignore[arg-type]
+
+        self.assertEqual("failed", result["status"])
+        self.assertEqual([], result["execution_plan"])
 
 
 if __name__ == "__main__":

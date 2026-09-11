@@ -31,6 +31,7 @@ _CATEGORY_AGENT: dict[str, AgentName] = {
     "RESTAURANT": "restaurant",
     "LODGING": "lodging",
 }
+_POLICY_VERIFIED_CATEGORIES = {"DESTINATION"}
 
 
 def _parse_datetime(value: str | None) -> datetime | None:
@@ -63,16 +64,20 @@ def _violation(
     }
 
 
+def _has_policy_data(item: ItinerarySlot) -> bool:
+    return item.get("category") in _POLICY_VERIFIED_CATEGORIES
+
+
 def _required_evidence(request: TravelRequest, item: ItinerarySlot) -> list[str]:
     missing: list[str] = []
     if not item.get("place_id") or not item.get("source_ids"):
         missing.append("place source")
     if not item.get("opens_at") or not item.get("closes_at"):
         missing.append("operatingHours")
+    if not _has_policy_data(item):
+        return missing
     if request.get("pet_allowed") and item.get("pet_allowed") is None:
         missing.append("petAllowed")
-    if request.get("pet_size") and item.get("max_pet_size") is None:
-        missing.append("maxPetSize")
     if request.get("indoor_pet") and item.get("indoor_pet_allowed") is None:
         missing.append("indoorPetAllowed")
     if request.get("wheelchair_accessible") and item.get("wheelchair_accessible") is None:
@@ -93,41 +98,42 @@ def _validate_item(request: TravelRequest, item: ItinerarySlot) -> list[HardViol
         )
         return violations
 
-    if request.get("pet_allowed") and item.get("pet_allowed") is False:
-        violations.append(
-            _violation(HardFailureCode.PET_NOT_ALLOWED, item, "반려동물 동반이 허용되지 않습니다.")
-        )
-
-    requested_size = request.get("pet_size")
-    allowed_size = item.get("max_pet_size")
-    if requested_size and allowed_size and (
-        _PET_SIZE_ORDER.get(allowed_size, 0) < _PET_SIZE_ORDER.get(requested_size, 0)
-    ):
-        violations.append(
-            _violation(
-                HardFailureCode.PET_SIZE_NOT_ALLOWED,
-                item,
-                f"{requested_size} 크기의 반려동물을 허용하지 않습니다.",
+    if _has_policy_data(item):
+        if request.get("pet_allowed") and item.get("pet_allowed") is False:
+            violations.append(
+                _violation(HardFailureCode.PET_NOT_ALLOWED, item, "반려동물 동반이 허용되지 않습니다.")
             )
-        )
 
-    if request.get("indoor_pet") and item.get("indoor_pet_allowed") is False:
-        violations.append(
-            _violation(
-                HardFailureCode.INDOOR_PET_NOT_ALLOWED,
-                item,
-                "필수 실내 반려동물 동반 조건을 만족하지 않습니다.",
+        requested_size = request.get("pet_size")
+        allowed_size = item.get("max_pet_size")
+        if requested_size and allowed_size and (
+            _PET_SIZE_ORDER.get(allowed_size, 0) < _PET_SIZE_ORDER.get(requested_size, 0)
+        ):
+            violations.append(
+                _violation(
+                    HardFailureCode.PET_SIZE_NOT_ALLOWED,
+                    item,
+                    f"{requested_size} 크기의 반려동물을 허용하지 않습니다.",
+                )
             )
-        )
 
-    if request.get("wheelchair_accessible") and item.get("wheelchair_accessible") is False:
-        violations.append(
-            _violation(
-                HardFailureCode.WHEELCHAIR_INACCESSIBLE,
-                item,
-                "휠체어 접근 조건을 만족하지 않습니다.",
+        if request.get("indoor_pet") and item.get("indoor_pet_allowed") is False:
+            violations.append(
+                _violation(
+                    HardFailureCode.INDOOR_PET_NOT_ALLOWED,
+                    item,
+                    "필수 실내 반려동물 동반 조건을 만족하지 않습니다.",
+                )
             )
-        )
+
+        if request.get("wheelchair_accessible") and item.get("wheelchair_accessible") is False:
+            violations.append(
+                _violation(
+                    HardFailureCode.WHEELCHAIR_INACCESSIBLE,
+                    item,
+                    "휠체어 접근 조건을 만족하지 않습니다.",
+                )
+            )
 
     start = _parse_datetime(item.get("start_at"))
     opens = _parse_time(item.get("opens_at"))
@@ -179,21 +185,15 @@ def validate_itinerary(
     request: TravelRequest, itinerary: list[ItinerarySlot]
 ) -> HardValidationResult:
     violations: list[HardViolation] = []
-    seen_places: dict[tuple[str, int], ItinerarySlot] = {}
+    seen_non_lodging_places: dict[str, ItinerarySlot] = {}
     previous: ItinerarySlot | None = None
 
     for item in itinerary:
         violations.extend(_validate_item(request, item))
         place_id = item.get("place_id")
-        day = int(item.get("day", 1))
-        visit_key = (place_id, day) if place_id else None
-        first_visit = seen_places.get(visit_key) if visit_key else None
-        repeated_lodging = bool(
-            first_visit
-            and first_visit.get("category") == "LODGING"
-            and item.get("category") == "LODGING"
-        )
-        if place_id and first_visit and not repeated_lodging:
+        category = item.get("category")
+        first_visit = seen_non_lodging_places.get(place_id) if place_id else None
+        if place_id and category != "LODGING" and first_visit:
             first_slot = first_visit.get("slot", "UNKNOWN")
             duplicate = _violation(
                 HardFailureCode.DUPLICATE_PLACE,
@@ -202,8 +202,8 @@ def validate_itinerary(
             )
             duplicate["slots"] = [first_slot, item.get("slot", "UNKNOWN")]
             violations.append(duplicate)
-        elif visit_key:
-            seen_places[visit_key] = item
+        elif place_id and category != "LODGING":
+            seen_non_lodging_places[place_id] = item
 
         if previous:
             previous_end = _parse_datetime(previous.get("end_at"))

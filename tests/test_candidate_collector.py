@@ -57,7 +57,7 @@ class CandidateCollectorTests(unittest.TestCase):
     def test_graph_collects_candidates_and_builds_day_trip(
         self, destination_client: Mock, restaurant_client: Mock
     ) -> None:
-        destination_client.search.return_value = search_response(PlaceDomain.DESTINATION, 1)
+        destination_client.search.return_value = search_response(PlaceDomain.DESTINATION, 2)
         restaurant_client.search.return_value = search_response(PlaceDomain.RESTAURANT, 2)
         state = travel_graph.invoke(
             {
@@ -75,7 +75,7 @@ class CandidateCollectorTests(unittest.TestCase):
         self.assertTrue(state["candidates_ready"])
         self.assertEqual("READY", state["itinerary_status"])
         self.assertEqual("completed", state["status"])
-        self.assertEqual(3, len(state["itinerary"]))
+        self.assertEqual(4, len(state["itinerary"]))
         self.assertEqual("VALID", state["hard_validation"]["status"])
         self.assertEqual("PASS", state["quality_validation"]["status"])
         self.assertEqual("READY", state["final_response"]["response_status"])

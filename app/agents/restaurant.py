@@ -2,41 +2,53 @@ from app.core.state import RestaurantCandidate, TravelState
 from app.search.be_client import search_client
 from app.search.client import SearchClientError
 from app.search.models import PlaceDomain, SearchRequest
-from app.search.request_factory import build_search_request
+from app.search.request_factory import (
+    build_search_diagnostic,
+    build_search_relaxation,
+    build_search_request,
+)
 
 
 def restaurant_node(state: TravelState) -> TravelState:
     search_request = _build_search_request(state)
+    relaxation = build_search_relaxation(state, PlaceDomain.RESTAURANT, "_LUNCH")
     try:
         response = search_client.search(search_request)
     except SearchClientError as exc:
-        return {"restaurant_search_request": search_request, "restaurant_candidates": [], "completed_agents": ["restaurant"], "errors": [str(exc)], "messages": ["음식점 검색 서비스 호출에 실패했습니다."]}
+        return {"restaurant_search_request": search_request, "restaurant_candidates": [], "completed_agents": ["restaurant"], "search_relaxations": [relaxation] if relaxation else [], "errors": [str(exc)], "messages": ["음식점 검색 서비스 호출에 실패했습니다."]}
 
     candidates: list[RestaurantCandidate] = [
         {
             "place_id": item.place_id,
             "name": item.name,
+            "subtype": item.place_subtype.value if item.place_subtype else None,
+            "place_subtype": item.place_subtype.value if item.place_subtype else None,
             "distance_km": item.distance_km,
             "cuisine": [],
             "score": item.score,
             "status": item.status.value,
-            "matched_conditions": item.matched_preferences,
+            "matched_conditions": list(dict.fromkeys([*item.matched_preferences, *item.matched_keywords])),
+            "matched_keywords": item.matched_keywords,
+            "matched_preference_details": item.matched_preference_details,
+            "region_code": item.region_code.value if item.region_code else None,
+            "region_match": item.region_match,
             "missing_fields": item.missing_fields,
             "reason": "일부 정책 정보는 확인이 필요합니다." if item.missing_fields else "검색 조건에 맞는 음식점입니다.",
             "latitude": item.location.lat if item.location else None,
             "longitude": item.location.lon if item.location else None,
             "address": item.address or "",
-            "opens_at": next((e.value for e in item.evidence if e.field == "opens_at"), None),
-            "closes_at": next((e.value for e in item.evidence if e.field == "closes_at"), None),
-            "pet_allowed": next((e.value for e in item.evidence if e.field == "pet_allowed"), None),
-            "max_pet_size": next((e.value for e in item.evidence if e.field == "max_pet_size"), None),
-            "indoor_pet_allowed": next((e.value for e in item.evidence if e.field == "indoor_pet_allowed"), None),
-            "wheelchair_accessible": next((e.value for e in item.evidence if e.field == "wheelchair_accessible"), None),
+            "opens_at": item.field_value("opens_at"),
+            "closes_at": item.field_value("closes_at"),
+            "pet_allowed": item.field_value("pet_allowed"),
+            "max_pet_size": item.field_value("max_pet_size"),
+            "indoor_pet_allowed": item.field_value("indoor_pet_allowed"),
+            "wheelchair_accessible": item.field_value("wheelchair_accessible"),
             "source_ids": [f"restaurant:{item.place_id}"],
         }
         for item in response.results
     ]
-    return {"restaurant_search_request": search_request, "restaurant_candidates": candidates, "completed_agents": ["restaurant"], "messages": [f"음식점 후보 {len(candidates)}개를 찾았습니다."]}
+    diagnostic = build_search_diagnostic(state, PlaceDomain.RESTAURANT, "_LUNCH", response.diagnostics)
+    return {"restaurant_search_request": search_request, "restaurant_candidates": candidates, "completed_agents": ["restaurant"], "search_relaxations": [relaxation] if relaxation else [], "search_diagnostics": [diagnostic] if diagnostic else [], "messages": [f"음식점 후보 {len(candidates)}개를 찾았습니다."]}
 
 
 def _build_search_request(state: TravelState) -> SearchRequest:

@@ -56,6 +56,10 @@ class DestinationCandidate(BaseModel):
     score: float
     reason: str
     matched_conditions: list[str] = Field(default_factory=list)
+    matched_keywords: list[str] = Field(default_factory=list)
+    matched_preference_details: list[dict[str, object]] = Field(default_factory=list)
+    region_code: str | None = None
+    region_match: bool | None = None
     opens_at: str | None = None
     closes_at: str | None = None
     pet_allowed: bool | None = None
@@ -78,6 +82,10 @@ class LodgingCandidate(BaseModel):
     address: str | None = None
     reason: str = ""
     matched_conditions: list[str] = Field(default_factory=list)
+    matched_keywords: list[str] = Field(default_factory=list)
+    matched_preference_details: list[dict[str, object]] = Field(default_factory=list)
+    region_code: str | None = None
+    region_match: bool | None = None
     pet_allowed: bool | None = None
     max_pet_size: str | None = None
     indoor_pet_allowed: bool | None = None
@@ -88,11 +96,17 @@ class LodgingCandidate(BaseModel):
 class RestaurantCandidate(BaseModel):
     place_id: str
     name: str
+    subtype: str | None = None
+    place_subtype: str | None = None
     distance_km: float | None = None
     cuisine: list[str] = Field(default_factory=list)
     score: float
     status: str
     matched_conditions: list[str] = Field(default_factory=list)
+    matched_keywords: list[str] = Field(default_factory=list)
+    matched_preference_details: list[dict[str, object]] = Field(default_factory=list)
+    region_code: str | None = None
+    region_match: bool | None = None
     missing_fields: list[str] = Field(default_factory=list)
     reason: str
     latitude: float | None = None
@@ -113,6 +127,7 @@ class ScheduledVisit(BaseModel):
     place_id: str
     name: str
     category: str
+    subtype: str | None = None
     start_time: str
     end_time: str
     travel_minutes_from_previous: int = 0
@@ -143,6 +158,39 @@ class RetryAction(BaseModel):
     instruction: str
 
 
+class SearchRelaxation(BaseModel):
+    agent: str
+    domain: str
+    slot: str
+    retry_count: int
+    original_query: str
+    used_query: str
+    original_regions: list[str] = Field(default_factory=list)
+    used_regions: list[str] = Field(default_factory=list)
+    strategy: str
+    reason: str
+    source: str = "retry_ladder"
+    failure_reasons: list[str] = Field(default_factory=list)
+    suggested_actions: list[str] = Field(default_factory=list)
+
+
+class SearchDiagnostic(BaseModel):
+    agent: str
+    domain: str
+    slot: str
+    retry_count: int
+    requested_limit: int
+    returned_count: int
+    unique_count: int
+    shortage: int
+    failure_reasons: list[str] = Field(default_factory=list)
+    under_matched_preferences: list[str] = Field(default_factory=list)
+    unmatched_query_terms: list[str] = Field(default_factory=list)
+    missing_evidence_fields: list[str] = Field(default_factory=list)
+    counts: dict[str, int] = Field(default_factory=dict)
+    suggested_actions: list[str] = Field(default_factory=list)
+
+
 class HardViolation(BaseModel):
     code: str
     slots: list[str] = Field(default_factory=list)
@@ -162,6 +210,8 @@ class QualityIssue(BaseModel):
     severity: str
     slots: list[str] = Field(default_factory=list)
     reason: str
+    target_agent: str | None = None
+    target_preferences: list[str] = Field(default_factory=list)
 
 
 class QualityValidationResult(BaseModel):
@@ -176,6 +226,7 @@ class ItinerarySlot(BaseModel):
     place_id: str
     name: str
     category: str
+    subtype: str | None = None
     start_at: str
     end_at: str
     latitude: float | None = None
@@ -218,6 +269,7 @@ class ResponseVisit(BaseModel):
     place_id: str
     name: str
     category: str
+    subtype: str | None = None
     address: str | None = None
     recommendation_reason: str
     operating_hours: str | None = None
@@ -240,6 +292,7 @@ class FinalTravelResponse(BaseModel):
     summary: str
     answer: str
     days: list[ResponseDay] = Field(default_factory=list)
+    accommodations: list[ResponseVisit] = Field(default_factory=list)
     notices: list[str] = Field(default_factory=list)
     quality_score: int | None = None
     source_ids: list[str] = Field(default_factory=list)
@@ -297,4 +350,6 @@ class TravelPlanResponse(BaseModel):
     itinerary_alternatives: list[list[ScheduledVisit]] = Field(default_factory=list)
     missing_slots: list[str] = Field(default_factory=list)
     retry_actions: list[RetryAction] = Field(default_factory=list)
+    search_relaxations: list[SearchRelaxation] = Field(default_factory=list)
+    search_diagnostics: list[SearchDiagnostic] = Field(default_factory=list)
     final_response: FinalTravelResponse | None = None
