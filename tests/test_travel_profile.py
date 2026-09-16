@@ -100,16 +100,18 @@ class TravelProfileAnalyzerTests(unittest.TestCase):
         self.assertLessEqual(len(first.evidences), 3)
         self.assertTrue(all(len(item) <= 200 for item in first.evidences))
 
-    def test_llm_generates_copy_but_cannot_change_rule_classification(self) -> None:
+    def test_llm_analyzes_profile_type_and_copy(self) -> None:
         client = Mock()
         client.create_answer.return_value = """{
+            "traveler_type": "CULTURE_EXPLORER",
             "title": "숲길을 천천히 발견하는 여행자",
             "description": "최근 정선의 자연과 산책 장소를 살펴본 흐름을 담았어요.",
             "tags": ["정선 자연", "숲길 산책", "정선 자연"],
             "evidences": [
                 "최근 검색 기록 3건을 관심 신호로 반영했어요.",
                 "최근 검색 기록 3건을 관심 신호로 반영했어요."
-            ]
+            ],
+            "confidence": 0.61
         }"""
         analyzer = TravelProfileAnalyzer(LLMProfileCopyGenerator(client=client))
         payload = TravelProfileRequest.model_validate(request_data(searches=searches("정선 자연 산책")))
@@ -117,12 +119,14 @@ class TravelProfileAnalyzerTests(unittest.TestCase):
         with patch.dict(os.environ, {"GANGWON_TRAVEL_PROFILE_LLM_ENABLED": "true"}):
             result = analyzer.analyze(payload)
 
-        self.assertEqual("NATURE_HEALING", result.traveler_type.value)
+        self.assertEqual("CULTURE_EXPLORER", result.traveler_type.value)
+        self.assertEqual(0.61, result.confidence)
         self.assertEqual("숲길을 천천히 발견하는 여행자", result.title)
         self.assertEqual(["정선 자연", "숲길 산책"], result.tags)
         client.create_answer.assert_called_once()
         call = client.create_answer.call_args.kwargs
         self.assertIn("신뢰할 수 없는 데이터", call["instructions"])
+        self.assertIn("직접 선택", call["instructions"])
         self.assertIn("정선 자연 산책", call["input_text"])
 
     def test_llm_unverifiable_evidence_uses_grounded_fallback(self) -> None:
@@ -169,7 +173,7 @@ class TravelProfileApiTests(unittest.TestCase):
         )
         self.assertEqual(200, response.status_code, response.text)
         self.assertEqual("PET_COMPANION", response.json()["traveler_type"])
-        self.assertEqual("travel-profile-v1", response.json()["analysis_version"])
+        self.assertEqual("travel-profile-llm-v1", response.json()["analysis_version"])
 
     def test_invalid_schema_returns_400(self) -> None:
         payload = request_data()

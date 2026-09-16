@@ -1,11 +1,20 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from app.search.models import SearchRequest
 
 
 # 필수 정보가 없어도 요청은 받는다. 누락 판정과 재질문은 ConflictChecker가 담당하므로
 # 여기서 422로 막으면 plan.md 0.3의 "추가 질문 반환" 흐름에 도달할 수 없다.
+class TravelProfileContext(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    traveler_type: str
+    tags: list[str] = Field(default_factory=list, max_length=5)
+    confidence: float = Field(ge=0, le=1)
+    analysis_version: str
+
+
 class TravelPlanRequest(BaseModel):
     message: str = Field(..., min_length=1, description="사용자 원본 요청")
     region: str | None = None
@@ -17,6 +26,7 @@ class TravelPlanRequest(BaseModel):
     indoor_pet: bool | None = None
     max_price: int | None = Field(default=None, ge=0)
     preferences: list[str] = Field(default_factory=list)
+    travel_profile: TravelProfileContext | None = None
 
 
 # FormBinder까지 마친 요청을 그대로 돌려주는 응답 필드다. 재질문이 필요할 때

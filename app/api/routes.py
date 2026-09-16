@@ -1,9 +1,10 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from app.agents.validation import validation_node
 from app.agents.itinerary import itinerary_node
 from app.agents.response import response_node
 from app.graph import travel_graph
+from app.travel_profile.auth import verify_internal_api_key
 from app.validators.hard_validator import hard_validator_node
 from app.schemas.travel import (
     AgentStep,
@@ -102,7 +103,11 @@ def preview_response(payload: ResponsePreviewRequest) -> FinalTravelResponse:
     return FinalTravelResponse.model_validate(result["final_response"])
 
 
-@router.post("/travel/plan", response_model=TravelPlanResponse)
+@router.post(
+    "/travel/plan",
+    response_model=TravelPlanResponse,
+    dependencies=[Depends(verify_internal_api_key)],
+)
 # 사용자 요청을 LangGraph에 전달하고 계획 또는 추가 질문을 반환한다.
 # 필수 정보가 없으면 input_complete=false와 clarification_questions를 돌려준다.
 # 이때 응답의 request를 다음 요청에 그대로 실어 보내면 앞 턴에서 채운 항목이 유지되므로,

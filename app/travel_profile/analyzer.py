@@ -15,7 +15,7 @@ from app.travel_profile.schema import (
 )
 
 
-ANALYSIS_VERSION = "travel-profile-v1"
+ANALYSIS_VERSION = "travel-profile-llm-v1"
 MINIMUM_SIGNALS = 3
 
 TYPE_LABELS = {
@@ -60,14 +60,20 @@ class TravelProfileAnalyzer:
                 evidences=evidence_candidates,
             ),
         )
+        analyzed_type = copy.traveler_type or classification.traveler_type
+        analyzed_confidence = (
+            min(confidence, copy.confidence)
+            if copy.confidence is not None
+            else confidence
+        )
         return TravelProfileResponse(
             status=ProfileStatus.COMPLETED,
-            traveler_type=classification.traveler_type,
+            traveler_type=analyzed_type,
             title=copy.title,
             description=copy.description,
             tags=copy.tags,
             evidences=copy.evidences,
-            confidence=confidence,
+            confidence=analyzed_confidence,
             analysis_version=ANALYSIS_VERSION,
         )
 

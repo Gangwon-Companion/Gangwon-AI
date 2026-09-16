@@ -270,16 +270,36 @@ def form_binder_node(state: TravelState) -> TravelState:
 def preference_extractor_node(state: TravelState) -> TravelState:
     request = dict(state["request"])
     message = request.get("message", "").lower()
-    keywords = _extract_preference_keywords(message, list(request.get("preferences", [])))
+    direct_keywords = _extract_preference_keywords(
+        message, list(request.get("preferences", []))
+    )
+    travel_profile = request.pop("travel_profile", None) or {}
+    raw_profile_tags = [
+        str(tag).strip()
+        for tag in travel_profile.get("tags", [])
+        if str(tag).strip() and str(tag).strip() not in direct_keywords
+    ]
+    profile_tags = _extract_preference_keywords(" ".join(raw_profile_tags), [])
+    keywords = direct_keywords
     request["preferences"] = keywords
 
     soft: dict[str, float] = {}
-    for keyword in keywords:
+    for keyword in direct_keywords:
         mapped = _PREFERENCE_KEYWORDS.get(keyword)
         if mapped is None:
             continue
         name, weight = mapped
         soft[name] = max(soft.get(name, 0.0), weight)
+
+    # Stored profile tags are supporting signals only. Explicit form/message
+    # preferences retain their normal weights and therefore always win.
+    profile_weight = min(0.45, 0.45 * float(travel_profile.get("confidence", 0.0)))
+    for tag in profile_tags:
+        mapped = _PREFERENCE_KEYWORDS.get(tag)
+        if mapped is None:
+            continue
+        name, _ = mapped
+        soft[name] = max(soft.get(name, 0.0), profile_weight)
 
     return {
         "request": request,

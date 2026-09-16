@@ -20,10 +20,12 @@ KOREAN_PATTERN = re.compile(r"[가-힣]")
 class GeneratedProfileCopy(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    traveler_type: TravelerType | None = None
     title: str = Field(min_length=1, max_length=100)
     description: str = Field(min_length=1, max_length=500)
     tags: list[str] = Field(min_length=1, max_length=5)
     evidences: list[str] = Field(min_length=1, max_length=3)
+    confidence: float | None = Field(default=None, ge=0, le=1)
 
     @field_validator("title", "description")
     @classmethod

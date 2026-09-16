@@ -185,6 +185,35 @@ Invoke-RestMethod `
 
 입력 충돌이 있으면 `needs_clarification` 상태와 확인 질문을 반환합니다.
 
+## 여행 취향 프로필 API
+
+BE가 전달한 비식별 검색·방문·저장 코스·리뷰 활동을 분석해 대표 여행자 유형, 한국어 설명, 태그, 근거와 신뢰도를 반환합니다.
+
+```text
+POST /internal/travel/profile/analyze
+Content-Type: application/json
+X-Internal-API-Key: <BE와 공유한 내부 API 키>
+```
+
+주요 동작:
+
+- 유효 활동 신호가 3건 미만이면 `INSUFFICIENT_DATA` 반환
+- LLM이 활동 전체를 종합해 여행자 유형·태그·설명·근거를 직접 분석
+- `NATURE_HEALING`, `PET_COMPANION`, `LOCAL_FOOD_EXPLORER`, `ACTIVITY_ADVENTURE`, `CULTURE_EXPLORER`, `BALANCED_TRAVELER` 지원
+- 서버가 최소 데이터·Enum·길이·근거 존재 여부와 신뢰도 상한을 검증
+- LLM 호출 또는 출력 검증 실패 시 기존 결정론적 분류기를 fallback으로 사용
+- `INTERNAL_API_KEY`가 설정된 환경에서는 `X-Internal-API-Key` 검증
+
+상세 요청·응답 계약과 구현 상태는 [TRAVEL_PROFILE_ANALYZER_SPEC.md](TRAVEL_PROFILE_ANALYZER_SPEC.md)를 참고하세요.
+
+여행 추천 개인화 연동:
+
+- `POST /internal/travel/plan`은 선택적 `travel_profile`을 받습니다.
+- 프로필 태그는 기존 추천의 soft preference로만 반영됩니다.
+- 현재 요청에서 사용자가 직접 입력한 선호가 저장 프로필보다 우선합니다.
+- 프로필이 없거나 만료된 경우 기존 추천 흐름과 동일하게 동작합니다.
+- 프로필 분석과 여행 계획 API는 같은 `INTERNAL_API_KEY`를 검증합니다.
+
 ## 테스트
 
 기본 단위·계약 테스트는 외부 서비스 없이 실행됩니다.
