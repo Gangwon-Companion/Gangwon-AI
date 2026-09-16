@@ -97,6 +97,27 @@ class PreferenceExtractorTests(unittest.TestCase):
         self.assertEqual(result["preference_profile"]["soft"]["food"], 0.8)
         self.assertEqual(result["preference_profile"]["soft"]["oceanView"], 0.9)
 
+    def test_profile_tags_are_lower_weight_than_direct_preferences(self) -> None:
+        result = preference_extractor_node(
+            {
+                "request": {
+                    "message": "조용한 곳보다 바다를 보고 싶어.",
+                    "preferences": ["바다"],
+                    "travel_profile": {
+                        "traveler_type": "NATURE_HEALING",
+                        "tags": ["힐링", "자연"],
+                        "confidence": 0.8,
+                        "analysis_version": "travel-profile-llm-v1",
+                    },
+                }
+            }  # type: ignore[arg-type]
+        )
+
+        self.assertEqual(0.9, result["preference_profile"]["soft"]["oceanView"])
+        self.assertAlmostEqual(0.36, result["preference_profile"]["soft"]["quiet"])
+        self.assertAlmostEqual(0.36, result["preference_profile"]["soft"]["nature"])
+        self.assertNotIn("travel_profile", result["request"])
+
     def test_ignores_deprioritized_cafe_preference(self) -> None:
         result = preference_extractor_node(
             {
