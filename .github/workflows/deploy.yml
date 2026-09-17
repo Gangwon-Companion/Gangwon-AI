@@ -11,10 +11,10 @@ concurrency:
   cancel-in-progress: false
 env:
   AWS_REGION: ap-northeast-2
-  ECR_REPOSITORY: gangwon-companion-prod-ai
-  ECS_CLUSTER: gangwon-companion-prod
-  ECS_SERVICE: gangwon-companion-prod-app
-  ECS_TASK_FAMILY: gangwon-companion-prod-app
+  ECR_REPOSITORY: gangwon-v2-ai
+  ECS_CLUSTER: gangwon-v2-cluster
+  ECS_SERVICE: gangwon-v2-service
+  ECS_TASK_FAMILY: gangwon-v2-app
   CONTAINER_NAME: ai
 jobs:
   deploy:
@@ -22,9 +22,9 @@ jobs:
     environment: prod
     steps:
       - uses: actions/checkout@v4
-      - uses: aws-actions/configure-aws-credentials@v4
+      - uses: aws-actions/configure-aws-credentials@v6
         with:
-          role-to-assume: arn:aws:iam::919400227010:role/gangwon-companion-prod-github-ai-deploy
+          role-to-assume: arn:aws:iam::312743357029:role/gangwon-v2-github-ai-deploy-role
           aws-region: ${{ env.AWS_REGION }}
       - id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
@@ -53,3 +53,6 @@ jobs:
           service: ${{ env.ECS_SERVICE }}
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: true
+          wait-max-delay-seconds: 15
+          enable-ecs-managed-tags: true
+          propagate-tags: SERVICE
