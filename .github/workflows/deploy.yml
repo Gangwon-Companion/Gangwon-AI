@@ -16,6 +16,7 @@ env:
   ECS_SERVICE: gangwon-v2-service
   ECS_TASK_FAMILY: gangwon-v2-app
   CONTAINER_NAME: ai
+  SECRET_ARN: arn:aws:secretsmanager:ap-northeast-2:312743357029:secret:gangwon-v2/application-fuIdOu
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -41,6 +42,22 @@ jobs:
       - name: Download current task definition
         run: |
           aws ecs describe-task-definition --task-definition "$ECS_TASK_FAMILY" --query taskDefinition > task-definition.json
+      - name: Normalize secret references
+        run: |
+          jq --arg secret "$SECRET_ARN" '
+            (.containerDefinitions[] | select(.name == "backend").secrets) = [
+              {"name":"SPRING_DATASOURCE_PASSWORD","valueFrom":($secret + ":SPRING_DATASOURCE_PASSWORD::")},
+              {"name":"JWT_SECRET","valueFrom":($secret + ":JWT_SECRET::")},
+              {"name":"PERSONAL_DATA_ENCRYPTION_KEY","valueFrom":($secret + ":PERSONAL_DATA_ENCRYPTION_KEY::")},
+              {"name":"TOUR_API_KEY","valueFrom":($secret + ":TOUR_API_KEY::")},
+              {"name":"AI_INTERNAL_API_KEY","valueFrom":($secret + ":AI_INTERNAL_API_KEY::")},
+              {"name":"ELASTICSEARCH_REINDEX_KEY","valueFrom":($secret + ":ELASTICSEARCH_REINDEX_KEY::")}
+            ]
+            | (.containerDefinitions[] | select(.name == "ai").secrets) = [
+              {"name":"INTERNAL_API_KEY","valueFrom":($secret + ":AI_INTERNAL_API_KEY::")}
+            ]
+          ' task-definition.json > task-definition.normalized.json
+          mv task-definition.normalized.json task-definition.json
       - id: render-task
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
