@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.agents.response_llm import OpenAIResponsesClient, ResponseLLMClient
 from app.travel_profile.prompt import profile_input, profile_instructions
-from app.travel_profile.schema import TravelProfileRequest, TravelerType
+from app.travel_profile.schema import AxisScores, TravelProfileRequest, TravelerType
 
 
 logger = logging.getLogger(__name__)
@@ -20,7 +20,6 @@ KOREAN_PATTERN = re.compile(r"[가-힣]")
 class GeneratedProfileCopy(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    traveler_type: TravelerType | None = None
     title: str = Field(min_length=1, max_length=100)
     description: str = Field(min_length=1, max_length=500)
     tags: list[str] = Field(min_length=1, max_length=5)
@@ -60,6 +59,7 @@ class ProfileCopyGenerator(Protocol):
         *,
         payload: TravelProfileRequest,
         traveler_type: TravelerType,
+        axis_scores: AxisScores,
         evidence_candidates: list[str],
         fallback: GeneratedProfileCopy,
     ) -> GeneratedProfileCopy:
@@ -76,6 +76,7 @@ class LLMProfileCopyGenerator:
         *,
         payload: TravelProfileRequest,
         traveler_type: TravelerType,
+        axis_scores: AxisScores,
         evidence_candidates: list[str],
         fallback: GeneratedProfileCopy,
     ) -> GeneratedProfileCopy:
@@ -88,6 +89,7 @@ class LLMProfileCopyGenerator:
                 instructions=profile_instructions(),
                 input_text=profile_input(
                     traveler_type=traveler_type,
+                    axis_scores=axis_scores,
                     activity_context=_activity_context(payload),
                     evidence_candidates=evidence_candidates,
                 ),
