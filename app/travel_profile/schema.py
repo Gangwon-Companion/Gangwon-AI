@@ -82,12 +82,57 @@ class ProfileStatus(str, Enum):
 
 
 class TravelerType(str, Enum):
-    NATURE_HEALING = "NATURE_HEALING"
-    PET_COMPANION = "PET_COMPANION"
-    LOCAL_FOOD_EXPLORER = "LOCAL_FOOD_EXPLORER"
-    ACTIVITY_ADVENTURE = "ACTIVITY_ADVENTURE"
-    CULTURE_EXPLORER = "CULTURE_EXPLORER"
-    BALANCED_TRAVELER = "BALANCED_TRAVELER"
+    CAPF = "CAPF"
+    CAPH = "CAPH"
+    CASF = "CASF"
+    CASH = "CASH"
+    CRPF = "CRPF"
+    CRPH = "CRPH"
+    CRSF = "CRSF"
+    CRSH = "CRSH"
+    NAPF = "NAPF"
+    NAPH = "NAPH"
+    NASF = "NASF"
+    NASH = "NASH"
+    NRPF = "NRPF"
+    NRPH = "NRPH"
+    NRSF = "NRSF"
+    NRSH = "NRSH"
+
+
+class AxisScores(StrictModel):
+    space: dict[str, int]
+    activity: dict[str, int]
+    schedule: dict[str, int]
+    place: dict[str, int]
+
+    @field_validator("space")
+    @classmethod
+    def validate_space(cls, values: dict[str, int]) -> dict[str, int]:
+        return cls._validate_axis(values, {"C", "N"})
+
+    @field_validator("activity")
+    @classmethod
+    def validate_activity(cls, values: dict[str, int]) -> dict[str, int]:
+        return cls._validate_axis(values, {"A", "R"})
+
+    @field_validator("schedule")
+    @classmethod
+    def validate_schedule(cls, values: dict[str, int]) -> dict[str, int]:
+        return cls._validate_axis(values, {"P", "S"})
+
+    @field_validator("place")
+    @classmethod
+    def validate_place(cls, values: dict[str, int]) -> dict[str, int]:
+        return cls._validate_axis(values, {"F", "H"})
+
+    @staticmethod
+    def _validate_axis(values: dict[str, int], keys: set[str]) -> dict[str, int]:
+        if set(values) != keys or any(value < 0 or value > 100 for value in values.values()):
+            raise ValueError("invalid travel type axis scores")
+        if sum(values.values()) != 100:
+            raise ValueError("axis scores must total 100")
+        return values
 
 
 class TravelProfileResponse(StrictModel):
@@ -98,6 +143,7 @@ class TravelProfileResponse(StrictModel):
     tags: list[str] = Field(default_factory=list, max_length=5)
     evidences: list[str] = Field(default_factory=list, max_length=3)
     confidence: float | None = Field(default=None, ge=0, le=1)
+    axis_scores: AxisScores | None = None
     analysis_version: str
 
     @field_validator("tags", mode="before")

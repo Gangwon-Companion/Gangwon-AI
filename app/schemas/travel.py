@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
 from app.search.models import SearchRequest
+from app.travel_profile.schema import AxisScores
 
 
 # 필수 정보가 없어도 요청은 받는다. 누락 판정과 재질문은 ConflictChecker가 담당하므로
@@ -12,6 +13,7 @@ class TravelProfileContext(BaseModel):
     traveler_type: str
     tags: list[str] = Field(default_factory=list, max_length=5)
     confidence: float = Field(ge=0, le=1)
+    axis_scores: AxisScores | None = None
     analysis_version: str
 
 
