@@ -12,6 +12,7 @@ from app.core.state import (
     TravelState,
 )
 from app.agents.response_llm import render_answer_with_llm
+from app.agents.rag_context import build_rag_context
 
 
 _POLICY_FIELDS = (
@@ -363,6 +364,11 @@ def build_final_response(state: TravelState) -> FinalTravelResponse:
         relaxation_notices,
         [_GENERAL_VISIT_NOTICE, *visit_notices],
     )
+    rag_context = build_rag_context(
+        days=days,
+        accommodations=accommodations,
+        notices=unique_notices,
+    )
     return {
         "response_status": "READY",
         "title": title,
@@ -376,6 +382,7 @@ def build_final_response(state: TravelState) -> FinalTravelResponse:
             source_ids=source_ids,
             fallback_answer=fallback_answer,
             accommodations=accommodations,
+            rag_context=rag_context,
         ),
         "days": days,
         "accommodations": accommodations,
